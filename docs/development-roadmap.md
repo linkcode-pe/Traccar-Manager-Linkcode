@@ -1,0 +1,13 @@
+# Hoja de ruta de desarrollo
+
+Las fases son una planificación; no implican que estén implementadas ni autorizadas por este documento.
+
+1. **FASE 1 — Estructura y repositorio.** Crear la raíz, documentación y control de versiones.
+2. **FASE 2 — Auditoría del servidor y detección segura.** Inventariar y reportar sin modificar.
+3. **FASE 3 — Dashboard web.** Diseñar e implementar después de aprobar requisitos y controles.
+4. **FASE 4 — Administración de Traccar.** Integración controlada, con privilegios mínimos.
+5. **FASE 5 — Mantenimiento y limpieza segura.** Alto riesgo. Primero solo detectar, clasificar, previsualizar y reportar. Cualquier futura eliminación deberá separar: **DETECTAR → PREVISUALIZAR → CLASIFICAR → CONFIRMAR → RESPALDAR → ELIMINAR → VERIFICAR**. Nunca borrar automáticamente.
+6. **FASE 6 — Integración controlada con base de datos.** Diseñar controles antes de cualquier acceso; no habilitar SQL arbitrario.
+7. **FASE 7 — Instalador web.** Diseñar y validar antes de hacerlo funcional.
+8. **FASE 8 — Empaquetado para servidores externos.** Definir compatibilidad, instalación, actualizaciones y recuperación.
+9. **FASE 9 — Plugin/integración futura con Traccar.** Evaluar como evolución separada, sin mezclarlo con la instalación existente.

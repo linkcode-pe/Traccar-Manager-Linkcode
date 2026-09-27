@@ -1,0 +1,52 @@
+# Entornos y artefactos Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Secretos y credenciales
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+secrets/
+credentials/
+
+# Datos, backups y logs
+backups/
+logs/
+*.log
+*.sql.gz
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+
+# Dependencias y artefactos generados
+node_modules/
+dist/
+build/
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Temporales y archivos del sistema
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*~
+~$*
+.DS_Store
+Thumbs.db
+desktop.ini
