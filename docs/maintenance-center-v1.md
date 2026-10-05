@@ -118,3 +118,6 @@ Se añadió un cliente estricto del Worker para el socket Unix de Retention Boun
 
 ## Incremento 21 - Health dinámico Boundary → Worker → Manager → Web
 Manager consulta el estado de la frontera mediante el UDS existente del Worker. Worker consulta a su vez el socket Unix aislado de Retention Boundary y valida el contrato exacto `DENY_PRODUCTION`. La web obtiene el resultado mediante un endpoint autenticado; cualquier fallo muestra `Frontera no disponible · operación bloqueada`. No se habilita Execute ni acceso destructivo.
+
+## Incremento 22 - Execute protocol probado contra gate final DENY_PRODUCTION
+Retention Boundary acepta ahora una solicitud estructurada exclusivamente para `DELETE_EXPIRED_HISTORICAL_LOGS` con nombres allowlisted. Una solicitud válida se valida y alcanza el gate final, que responde `DENIED_BY_PRODUCTION_GATE`; una solicitud con log activo, traversal u operación fuera de allowlist se rechaza antes. En todos los casos `production_access=false` y `destructive_action_performed=false`. No existe mutación productiva.

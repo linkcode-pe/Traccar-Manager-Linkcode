@@ -13,3 +13,14 @@ def query_health()->dict[str,object]:
  except Exception:raise BoundaryUnavailable('BOUNDARY_UNAVAILABLE') from None
  if d!=EXPECTED:raise BoundaryUnavailable('BOUNDARY_UNAVAILABLE')
  return d
+
+def probe_execute_denial(names:list[str])->dict[str,object]:
+ s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(2.0)
+ try:s.connect(SOCKET_PATH);s.sendall((json.dumps({'operation':'DELETE_EXPIRED_HISTORICAL_LOGS','names':names},sort_keys=True,separators=(',',':'))+'\n').encode());raw=s.recv(4096)
+ except OSError:raise BoundaryUnavailable('BOUNDARY_UNAVAILABLE') from None
+ finally:s.close()
+ try:d=json.loads(raw.decode())
+ except Exception:raise BoundaryUnavailable('BOUNDARY_UNAVAILABLE') from None
+ expected={'status':'DENIED_BY_PRODUCTION_GATE','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':True,'candidate_count':len(names)}
+ if d!=expected:raise BoundaryUnavailable('BOUNDARY_UNAVAILABLE')
+ return d
