@@ -247,3 +247,38 @@ def query_maintenance_logs_preview(request_id: str, subject_id: str, roles: tupl
     if not isinstance(receipt,dict) or set(receipt)!=_AUDIT_RECEIPT_KEYS or receipt.get("operation")!=MAINTENANCE_OPERATION or receipt.get("ledger_operation")!=MAINTENANCE_OPERATION or receipt.get("endpoint")!=MAINTENANCE_ENDPOINT or receipt.get("role")!=MAINTENANCE_ROLE or receipt.get("request_id")!=request_id or receipt.get("subject_id")!=subject_id or receipt.get("durable") is not True:
         raise WorkerTransportError("WORKER_UNAVAILABLE")
     return {"preview":preview,"preview_id":preview_id,"audit_receipt":receipt}
+
+
+MAINTENANCE_PREPARE_OPERATION = "maintenance.logs.prepare"
+MAINTENANCE_PREPARE_ROLE = "maintenance.logs.prepare"
+MAINTENANCE_PREPARE_ENDPOINT = "/api/maintenance/logs/prepare"
+
+def query_maintenance_logs_prepare(request_id: str, subject_id: str, roles: tuple[str, ...], preview_id: str, retention_days: int = 90) -> dict[str, object]:
+    if (not isinstance(request_id,str) or not _REQUEST_ID_RE.fullmatch(request_id) or not isinstance(subject_id,str) or not _SUBJECT_RE.fullmatch(subject_id)
+            or not isinstance(roles,tuple) or MAINTENANCE_PREPARE_ROLE not in roles or not isinstance(preview_id,str) or not preview_id.startswith("preview-") or len(preview_id)!=72
+            or type(retention_days) is not int or not 30 <= retention_days <= 3650): raise WorkerTransportError("INVALID_REQUEST")
+    if os.geteuid()!=WEB_UID: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    worker_uid,worker_gid,_=_verify_socket_path(); message={"protocol_version":1,"operation":MAINTENANCE_PREPARE_OPERATION,"request_id":request_id,"subject_id":subject_id,"roles":[MAINTENANCE_PREPARE_ROLE],"payload":{"retention_days":retention_days,"preview_id":preview_id}}
+    encoded=json.dumps(message,sort_keys=True,separators=(",",":"),allow_nan=False).encode()+b"\n"; client=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); client.settimeout(ROUNDTRIP_TIMEOUT_SECONDS)
+    try:
+        client.connect(SOCKET_PATH); _pid,uid,gid=_peer_credentials(client)
+        if uid!=worker_uid or gid!=worker_gid: raise WorkerTransportError("WORKER_UNAVAILABLE")
+        client.sendall(encoded); client.shutdown(socket.SHUT_WR); chunks=[]; total=0
+        while True:
+            chunk=client.recv(2048)
+            if not chunk: break
+            total+=len(chunk)
+            if total>MAX_MESSAGE_BYTES: raise WorkerTransportError("WORKER_UNAVAILABLE")
+            chunks.append(chunk)
+    except WorkerTransportError: raise
+    except (OSError,TimeoutError): raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    finally: client.close()
+    raw=b"".join(chunks)
+    try: response=json.loads(raw[:-1].decode(),object_pairs_hook=_pairs_no_duplicates) if raw.endswith(b"\n") and raw.count(b"\n")==1 else None
+    except Exception: response=None
+    if not isinstance(response,dict) or set(response)!={"schema_version","protocol_version","operation","request_id","outcome","preparation","preview_id","audit_receipt"} or response.get("operation")!=MAINTENANCE_PREPARE_OPERATION or response.get("request_id")!=request_id or response.get("outcome")!="SUCCEEDED" or response.get("preview_id")!=preview_id: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    preparation=response.get("preparation"); receipt=response.get("audit_receipt")
+    required={"preparation_id","preview_id","preview_hash","retention_days","candidate_count","candidate_bytes","issued_at_utc","expires_at_utc","one_time_nonce","revalidated","destructive_action_performed"}
+    if not isinstance(preparation,dict) or set(preparation)!=required or preparation.get("preview_id")!=preview_id or preparation.get("retention_days")!=retention_days or preparation.get("revalidated") is not True or preparation.get("destructive_action_performed") is not False: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if not isinstance(receipt,dict) or receipt.get("operation")!=MAINTENANCE_PREPARE_OPERATION or receipt.get("request_id")!=request_id or receipt.get("subject_id")!=subject_id or receipt.get("durable") is not True: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return {"preparation":preparation,"preview_id":preview_id,"audit_receipt":receipt}

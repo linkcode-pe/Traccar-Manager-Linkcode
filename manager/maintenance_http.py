@@ -37,3 +37,20 @@ class ManagerMaintenanceAPI:
         return {"schema_version":1,"request_id":request_id,"operation":OPERATION,
                 "preview_id":response["preview_id"],"preview":response["preview"]}
     def close(self): return None
+
+# PREPARED bridge is intentionally separate from read-only preview.
+from manager.worker_uds import query_maintenance_logs_prepare, MAINTENANCE_PREPARE_ENDPOINT
+from worker.maintenance_prepare_dispatch import OPERATION as PREPARE_OPERATION, ROLE as PREPARE_ROLE, TARGET as PREPARE_TARGET
+
+def prepare_logs(self, request_id: str, principal: SessionPrincipal, preview_id: str, retention_days: int=90) -> dict[str, object]:
+    if not isinstance(principal,SessionPrincipal): raise MaintenanceAPIError("API_UNAUTHORIZED")
+    if PREPARE_ROLE not in principal.roles: raise MaintenanceAPIError("API_FORBIDDEN")
+    try: response=query_maintenance_logs_prepare(request_id,principal.subject_id,principal.roles,preview_id,retention_days)
+    except WorkerTransportError as exc:
+        if str(exc)=="INVALID_REQUEST": raise MaintenanceAPIError("API_INVALID_REQUEST") from None
+        raise MaintenanceAPIError("API_PROVIDER_UNAVAILABLE") from None
+    try: ok=self._ledger.verify_finalization_receipt_generic(response["audit_receipt"],request_id=request_id,subject_id=principal.subject_id,role=PREPARE_ROLE,endpoint=MAINTENANCE_PREPARE_ENDPOINT,protocol_operation=PREPARE_OPERATION,operation=PREPARE_OPERATION,target=PREPARE_TARGET)
+    except Exception: ok=False
+    if ok is not True: raise MaintenanceAPIError("API_AUDIT_UNAVAILABLE")
+    return {"schema_version":1,"request_id":request_id,"operation":PREPARE_OPERATION,"preview_id":preview_id,"preparation":response["preparation"]}
+ManagerMaintenanceAPI.prepare_logs=prepare_logs

@@ -91,6 +91,8 @@ PAGE = """<!doctype html>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
+        <button id="prepare-logs-button" class="secondary" type="button" hidden>Preparar limpieza</button>
+        <p id="maintenance-preparation" class="muted" hidden></p>
         <p id="maintenance-state" class="status">Sin análisis</p>
         <p id="maintenance-detail" class="muted">No se ha ejecutado ninguna vista previa.</p>
         <div id="maintenance-summary" class="maintenance-summary" hidden>
@@ -133,6 +135,7 @@ APP_JS = r"""(() => {
   const traccarDetail = byId("traccar-detail");
   const retentionDays = byId("retention-days");
   const previewLogsButton = byId("preview-logs-button");
+  const prepareLogsButton=byId("prepare-logs-button"); const maintenancePreparation=byId("maintenance-preparation"); let lastPreview=null;
   const maintenanceState = byId("maintenance-state");
   const maintenanceDetail = byId("maintenance-detail");
   const maintenanceCandidates = byId("maintenance-candidates");
@@ -223,13 +226,16 @@ APP_JS = r"""(() => {
       maintenanceHistoryBytes.textContent=formatBytes(p.historical_bytes);
       maintenanceCandidateCount.textContent=String(p.candidate_count);
       maintenanceCandidateBytes.textContent=formatBytes(p.candidate_bytes);
-      maintenanceSummary.hidden=false;
+      maintenanceSummary.hidden=false; lastPreview={previewId:data.preview_id,days:days}; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true;
       maintenanceRange.textContent=p.candidate_count ? "Rango candidato: "+p.oldest_candidate_utc+" → "+p.newest_candidate_utc : "No existen archivos fuera de la retención seleccionada.";
       maintenanceRange.hidden=false;
       p.candidates.forEach((item)=>{ const li=document.createElement("li"); li.textContent=item.name+" — "+formatBytes(item.size_bytes)+" — "+item.mtime_utc; maintenanceCandidates.appendChild(li); });
     } catch (_error) { maintenanceState.textContent="Vista previa no disponible"; maintenanceDetail.textContent="No se realizó ninguna acción destructiva."; maintenanceError.textContent="No se pudo analizar los logs."; maintenanceError.hidden=false; }
     finally { previewLogsButton.disabled=false; }
   }
+
+
+  async function prepareLogs(){ if(!lastPreview)return; prepareLogsButton.disabled=true; maintenanceError.hidden=true; try { const requestId=newRequestId(); const response=await fetchApi("maintenance/logs/prepare",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request_id:requestId,preview_id:lastPreview.previewId,retention_days:lastPreview.days})}); if(response.status===401){showLogin("La sesión expiró. Inicia sesión de nuevo.");return;} if(response.status===403){maintenancePreparation.textContent="Sin permiso maintenance.logs.prepare.";maintenancePreparation.hidden=false;return;} if(!response.ok)throw new Error(); const data=await response.json(),q=data.preparation; if(!q||q.destructive_action_performed!==false||q.revalidated!==true)throw new Error(); maintenancePreparation.textContent="Preparación segura creada. Expira: "+q.expires_at_utc+" · no se eliminó ningún archivo.";maintenancePreparation.hidden=false; prepareLogsButton.hidden=true; }catch(e){maintenanceError.textContent="No se pudo preparar la limpieza. Vuelve a analizar los logs.";maintenanceError.hidden=false;}finally{prepareLogsButton.disabled=false;} }
 
   async function loadSnapshot() {
     showAuthenticatedLoading();
@@ -339,6 +345,7 @@ APP_JS = r"""(() => {
   });
 
   previewLogsButton.addEventListener("click", previewLogs);
+  prepareLogsButton.addEventListener("click",prepareLogs);
 
   (async () => {
     try {
@@ -630,6 +637,20 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._json(status,{"error":"maintenance_unavailable","request_id":values["request_id"]}); return
         self._json(HTTPStatus.OK,result)
 
+    def _handle_maintenance_logs_prepare(self) -> None:
+        token=self._cookie_token(); principal=self.server.session_store.get(token) if token is not None else None
+        if principal is None: self._json(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"}); return
+        if "maintenance.logs.prepare" not in principal.roles: self._json(HTTPStatus.FORBIDDEN,{"error":"forbidden"}); return
+        try:
+            length=int(self.headers.get("Content-Length","0")); raw=self.rfile.read(length); data=json.loads(raw.decode("utf-8"))
+            if not isinstance(data,dict) or set(data)!={"request_id","preview_id","retention_days"}: raise ValueError()
+            if not isinstance(data["request_id"],str) or not data["request_id"] or not isinstance(data["preview_id"],str) or not data["preview_id"].startswith("preview-") or len(data["preview_id"])!=72 or type(data["retention_days"]) is not int or not 30<=data["retention_days"]<=3650: raise ValueError()
+        except Exception: self._json(HTTPStatus.BAD_REQUEST,{"error":"invalid_request"}); return
+        try: result=self.server.maintenance_api.prepare_logs(data["request_id"],principal,data["preview_id"],data["retention_days"])
+        except MaintenanceAPIError as exc:
+            status={"API_FORBIDDEN":HTTPStatus.FORBIDDEN,"API_INVALID_REQUEST":HTTPStatus.BAD_REQUEST,"API_AUDIT_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE,"API_PROVIDER_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE}.get(exc.code,HTTPStatus.INTERNAL_SERVER_ERROR); self._json(status,{"error":"maintenance_unavailable","request_id":data["request_id"]}); return
+        self._json(HTTPStatus.OK,result)
+
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
         if path == "/":
@@ -656,6 +677,8 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_login()
         elif path == "/api/auth/logout":
             self._handle_logout()
+        elif path == "/api/maintenance/logs/prepare":
+            self._handle_maintenance_logs_prepare()
         elif path in ("/", "/health", "/app.js", "/api/auth/me", "/api/dashboard/snapshot", "/api/maintenance/logs/preview"):
             self._method_not_allowed("GET")
         else:
