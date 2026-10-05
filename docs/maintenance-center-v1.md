@@ -163,3 +163,6 @@ Se añadió un cargador fail-closed que sólo acepta `retention-plan-hmac.key` d
 
 ## Incremento 35 - Emisión y verificación HMAC dentro de Boundary
 Retention Boundary carga su credencial systemd y expone dos acciones locales todavía no destructivas: `ISSUE_AUTH` firma el plan exacto y `VERIFY` exige el token antes de revalidar. Alterar ID, candidatos o retención invalida el token (`DENIED_BY_PLAN_AUTH`). Incluso un token válido termina en `DENIED_BY_PRODUCTION_GATE`; no existe mutación productiva en este protocolo.
+
+## Incremento 36 - Autorización por identidad Unix del peer
+Boundary valida `SO_PEERCRED` en cada conexión sensible y sólo acepta `ISSUE_AUTH`/`VERIFY` cuando el UID real corresponde a `traccar-manager-worker`. El socket deja de ser world-writable: se publica `0660` con grupo `traccar-manager-worker`. La unidad Boundary recibe ese grupo como suplementario exclusivamente para poder asignarlo al socket. Manager/UI queda fuera del canal criptográfico. Producción continúa `DENY_PRODUCTION`.
