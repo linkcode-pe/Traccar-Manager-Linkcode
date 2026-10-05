@@ -109,3 +109,6 @@ Se formalizó la frontera destructiva como componente sandbox-only: `production_
 
 ## Incremento 18 - Contrato del futuro servicio privilegiado
 Se añadió un contrato puro, sin side effects, para la futura frontera privilegiada. Declara `DENY_PRODUCTION`, identidad separada obligatoria, sin red ni shell, una sola operación `DELETE_EXPIRED_HISTORICAL_LOGS`, nombres históricos allowlisted y log activo denegado. No se creó usuario privilegiado, socket, sudoers, capability ni permiso sobre `/opt/traccar/logs`; por diseño esta fase sólo valida el protocolo antes de crear la identidad del servicio.
+
+## Incremento 19 - Servicio de frontera instalado en modo DENY_PRODUCTION
+Se implementó el servidor Unix local de la frontera con identidad separada y unit systemd endurecida. Su única respuesta actual es health/contrato; declara `production_access=false` y `destructive_action_performed=false`. No importa el helper destructivo, no tiene red, shell, capabilities ni `ReadWritePaths` hacia `/opt/traccar/logs`. La UI refleja la existencia del servicio separado, pero Execute continúa bloqueado.

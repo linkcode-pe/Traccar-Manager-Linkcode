@@ -1,0 +1,26 @@
+[Unit]
+Description=Traccar Manager retention boundary (DENY_PRODUCTION)
+After=local-fs.target
+[Service]
+Type=simple
+User=traccar-manager-retention
+Group=traccar-manager-retention
+WorkingDirectory=/opt/traccar-manager
+ExecStart=/usr/bin/python3 -B /opt/traccar-manager/worker/retention_boundary_server.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/traccar-manager-retention
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+UMask=0027
+RuntimeDirectory=traccar-manager-retention
+RuntimeDirectoryMode=0750
+Environment=PYTHONDONTWRITEBYTECODE=1
+[Install]
+WantedBy=multi-user.target
