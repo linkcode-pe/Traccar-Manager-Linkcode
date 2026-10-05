@@ -28,6 +28,7 @@ from manager.auth.auth_store import AuthStore, AuthStoreError
 from manager.auth.session_store import SessionStore
 from api.read_only_dashboard_v1 import DashboardAPIError, snapshot_to_dict
 from manager.dashboard_http import ManagerDashboardAPI
+from manager.maintenance_http import ManagerMaintenanceAPI, MaintenanceAPIError
 
 BIND_ADDRESS = "127.0.0.1"
 PORT = 8765
@@ -104,6 +105,17 @@ PAGE = """<!doctype html>
         <p id="traccar-state" class="status">Proveedor pendiente</p>
         <p id="traccar-detail" class="muted">El estado real del servicio no se consulta en esta fase.</p>
       </article>
+      <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
+        <h3 id="maintenance-title">Centro de mantenimiento</h3>
+        <p class="muted">Vista previa segura de logs obsoletos. Esta función no elimina archivos.</p>
+        <label for="retention-days">Retención de logs (días)</label>
+        <input id="retention-days" type="number" min="30" max="3650" value="90">
+        <button id="preview-logs-button" type="button">Analizar logs</button>
+        <p id="maintenance-state" class="status">Sin análisis</p>
+        <p id="maintenance-detail" class="muted">No se ha ejecutado ninguna vista previa.</p>
+        <ul id="maintenance-candidates"></ul>
+        <p id="maintenance-error" class="error" role="alert" hidden></p>
+      </article>
       <p id="dashboard-error" class="error" role="alert" hidden></p>
     </section>
     <noscript>Activa JavaScript para iniciar sesión y consultar el dashboard.</noscript>
@@ -131,6 +143,12 @@ APP_JS = r"""(() => {
   const dashboardError = byId("dashboard-error");
   const traccarState = byId("traccar-state");
   const traccarDetail = byId("traccar-detail");
+  const retentionDays = byId("retention-days");
+  const previewLogsButton = byId("preview-logs-button");
+  const maintenanceState = byId("maintenance-state");
+  const maintenanceDetail = byId("maintenance-detail");
+  const maintenanceCandidates = byId("maintenance-candidates");
+  const maintenanceError = byId("maintenance-error");
 
   function showLogin(message) {
     boot.hidden = true;
@@ -180,6 +198,36 @@ APP_JS = r"""(() => {
         (value) => value.toString(16).padStart(2, "0")).join("");
     }
     throw new Error("request_id_unavailable");
+  }
+
+  function formatBytes(value) {
+    if (!Number.isSafeInteger(value) || value < 0) return "—";
+    if (value < 1024) return value + " B";
+    const units=["KiB","MiB","GiB","TiB"]; let n=value/1024, i=0;
+    while (n >= 1024 && i < units.length-1) { n/=1024; i++; }
+    return n.toFixed(n >= 10 ? 1 : 2) + " " + units[i];
+  }
+
+  async function previewLogs() {
+    maintenanceError.hidden=true; maintenanceCandidates.replaceChildren();
+    const days=Number(retentionDays.value);
+    if (!Number.isInteger(days) || days < 30 || days > 3650) {
+      maintenanceError.textContent="La retención debe estar entre 30 y 3650 días."; maintenanceError.hidden=false; return;
+    }
+    previewLogsButton.disabled=true; maintenanceState.textContent="Analizando…";
+    try {
+      const requestId=newRequestId();
+      const response=await fetchApi("maintenance/logs/preview?request_id="+encodeURIComponent(requestId)+"&retention_days="+days,{method:"GET"});
+      if (response.status===401) { showLogin("La sesión expiró. Inicia sesión de nuevo."); return; }
+      if (response.status===403) { maintenanceState.textContent="Sin permiso"; maintenanceDetail.textContent="Se requiere maintenance.logs.preview."; return; }
+      if (!response.ok) throw new Error("maintenance_unavailable");
+      const data=await response.json(), p=data && data.preview;
+      if (!data || data.schema_version!==1 || data.request_id!==requestId || !p || p.destructive_action_performed!==false || p.active_log_protected!==true || !Array.isArray(p.candidates)) throw new Error("maintenance_invalid");
+      maintenanceState.textContent=p.candidate_count+" archivo(s) candidato(s)";
+      maintenanceDetail.textContent="Espacio recuperable: "+formatBytes(p.candidate_bytes)+" · Corte UTC: "+p.cutoff_utc+" · log activo protegido";
+      p.candidates.forEach((item)=>{ const li=document.createElement("li"); li.textContent=item.name+" — "+formatBytes(item.size_bytes)+" — "+item.mtime_utc; maintenanceCandidates.appendChild(li); });
+    } catch (_error) { maintenanceState.textContent="Vista previa no disponible"; maintenanceDetail.textContent="No se realizó ninguna acción destructiva."; maintenanceError.textContent="No se pudo analizar los logs."; maintenanceError.hidden=false; }
+    finally { previewLogsButton.disabled=false; }
   }
 
   async function loadSnapshot() {
@@ -289,6 +337,8 @@ APP_JS = r"""(() => {
     }
   });
 
+  previewLogsButton.addEventListener("click", previewLogs);
+
   (async () => {
     try {
       const response = await fetchApi("auth/me", { method: "GET" });
@@ -321,11 +371,13 @@ class ManagerHTTPServer(HTTPServer):
 
     def __init__(self, port: int = PORT, *, auth_store: AuthStore | None = None,
                  session_store: SessionStore | None = None, audit_writer=write_auth_audit,
-                 dashboard_api: ManagerDashboardAPI | None = None):
+                 dashboard_api: ManagerDashboardAPI | None = None,
+                 maintenance_api: ManagerMaintenanceAPI | None = None):
         self.auth_store = auth_store if auth_store is not None else AuthStore()
         self.session_store = session_store if session_store is not None else SessionStore()
         self.audit_writer = audit_writer
         self.dashboard_api = dashboard_api if dashboard_api is not None else ManagerDashboardAPI()
+        self.maintenance_api = maintenance_api if maintenance_api is not None else ManagerMaintenanceAPI()
         super().__init__((BIND_ADDRESS, port), ManagerRequestHandler)
         if self.server_address[0] != BIND_ADDRESS:
             self.server_close()
@@ -337,6 +389,9 @@ class ManagerHTTPServer(HTTPServer):
             if dashboard_api is not None:
                 dashboard_api.close()
         finally:
+            maintenance_api = getattr(self, "maintenance_api", None)
+            if maintenance_api is not None:
+                maintenance_api.close()
             super().server_close()
 
 
@@ -553,6 +608,27 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             return
         self._json(HTTPStatus.OK, snapshot_to_dict(snapshot))
 
+    def _handle_maintenance_logs_preview(self) -> None:
+        token=self._cookie_token(); principal=self.server.session_store.get(token) if token is not None else None
+        if principal is None:
+            self._json(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"}); return
+        if "maintenance.logs.preview" not in principal.roles:
+            self._json(HTTPStatus.FORBIDDEN,{"error":"forbidden"}); return
+        try:
+            query=parse_qsl(urlsplit(self.path).query,keep_blank_values=True,strict_parsing=True,max_num_fields=3)
+            values={k:v for k,v in query}
+            if len(query)!=2 or set(values)!={"request_id","retention_days"}: raise ValueError()
+            days=int(values["retention_days"])
+            if str(days)!=values["retention_days"] or not 30<=days<=3650 or not values["request_id"]: raise ValueError()
+        except (ValueError,UnicodeError):
+            self._json(HTTPStatus.BAD_REQUEST,{"error":"invalid_request"}); return
+        try: result=self.server.maintenance_api.preview_logs(values["request_id"],principal,days)
+        except MaintenanceAPIError as exc:
+            status={"API_FORBIDDEN":HTTPStatus.FORBIDDEN,"API_INVALID_REQUEST":HTTPStatus.BAD_REQUEST,
+                    "API_AUDIT_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE,"API_PROVIDER_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE}.get(exc.code,HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._json(status,{"error":"maintenance_unavailable","request_id":values["request_id"]}); return
+        self._json(HTTPStatus.OK,result)
+
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
         if path == "/":
@@ -566,6 +642,8 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_me()
         elif path == "/api/dashboard/snapshot":
             self._handle_dashboard_snapshot()
+        elif path == "/api/maintenance/logs/preview":
+            self._handle_maintenance_logs_preview()
         elif path in ("/api/auth/login", "/api/auth/logout"):
             self._method_not_allowed("POST")
         else:
@@ -577,7 +655,7 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_login()
         elif path == "/api/auth/logout":
             self._handle_logout()
-        elif path in ("/", "/health", "/app.js", "/api/auth/me", "/api/dashboard/snapshot"):
+        elif path in ("/", "/health", "/app.js", "/api/auth/me", "/api/dashboard/snapshot", "/api/maintenance/logs/preview"):
             self._method_not_allowed("GET")
         else:
             self._respond(HTTPStatus.NOT_FOUND, b"Not Found\n", "text/plain; charset=utf-8")

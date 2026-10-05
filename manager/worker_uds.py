@@ -198,3 +198,52 @@ def query_status(request_id: str, subject_id: str, roles: tuple[str, ...]) -> di
     if not _validate_receipt(receipt, request_id=request_id, subject_id=subject_id):
         raise WorkerTransportError("WORKER_UNAVAILABLE")
     return {"observed_at_utc": observed, "properties": dict(properties), "audit_receipt": dict(receipt)}
+
+MAINTENANCE_OPERATION = "maintenance.logs.preview"
+MAINTENANCE_ROLE = "maintenance.logs.preview"
+MAINTENANCE_ENDPOINT = "/api/maintenance/logs/preview"
+
+def query_maintenance_logs_preview(request_id: str, subject_id: str, roles: tuple[str, ...], retention_days: int = 90) -> dict[str, object]:
+    """One correlated read-only maintenance preview over the existing AF_UNIX Worker channel."""
+    if (not isinstance(request_id,str) or not _REQUEST_ID_RE.fullmatch(request_id)
+            or not isinstance(subject_id,str) or not _SUBJECT_RE.fullmatch(subject_id)
+            or not isinstance(roles,tuple) or MAINTENANCE_ROLE not in roles
+            or type(retention_days) is not int or not 30 <= retention_days <= 3650):
+        raise WorkerTransportError("INVALID_REQUEST")
+    if os.geteuid()!=WEB_UID: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    worker_uid,worker_gid,_=_verify_socket_path()
+    message={"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_OPERATION,"request_id":request_id,
+             "subject_id":subject_id,"roles":[MAINTENANCE_ROLE],"payload":{"retention_days":retention_days}}
+    encoded=json.dumps(message,sort_keys=True,separators=(",",":"),allow_nan=False).encode()+b"\n"
+    client=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); client.settimeout(ROUNDTRIP_TIMEOUT_SECONDS)
+    try:
+        client.connect(SOCKET_PATH); _pid,uid,gid=_peer_credentials(client)
+        if uid!=worker_uid or gid!=worker_gid: raise WorkerTransportError("WORKER_UNAVAILABLE")
+        client.sendall(encoded); client.shutdown(socket.SHUT_WR); chunks=[]; total=0
+        while True:
+            chunk=client.recv(2048)
+            if not chunk: break
+            total+=len(chunk)
+            if total>MAX_MESSAGE_BYTES: raise WorkerTransportError("WORKER_UNAVAILABLE")
+            chunks.append(chunk)
+    except WorkerTransportError: raise
+    except (OSError,TimeoutError): raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    finally: client.close()
+    raw=b"".join(chunks)
+    if not raw.endswith(b"\n") or raw.count(b"\n")!=1 or b"\r" in raw: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    try: response=json.loads(raw[:-1].decode(),object_pairs_hook=_pairs_no_duplicates,parse_constant=lambda _v: (_ for _ in ()).throw(ValueError()))
+    except Exception: raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    if not isinstance(response,dict) or response.get("schema_version")!=1 or response.get("protocol_version")!=1 or response.get("operation")!=MAINTENANCE_OPERATION or response.get("request_id")!=request_id:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if response.get("outcome")!="SUCCEEDED" or set(response)!={"schema_version","protocol_version","operation","request_id","outcome","preview","preview_id","audit_receipt"}:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    preview=response.get("preview"); receipt=response.get("audit_receipt"); preview_id=response.get("preview_id")
+    required={"log_dir","retention_days","cutoff_utc","candidate_count","candidate_bytes","candidates","active_log_protected","destructive_action_performed"}
+    if not isinstance(preview,dict) or set(preview)!=required or preview.get("log_dir")!="/opt/traccar/logs" or preview.get("retention_days")!=retention_days or preview.get("destructive_action_performed") is not False or preview.get("active_log_protected") is not True:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if type(preview.get("candidate_count")) is not int or preview["candidate_count"]<0 or type(preview.get("candidate_bytes")) is not int or preview["candidate_bytes"]<0 or not isinstance(preview.get("candidates"),list) or len(preview["candidates"])!=preview["candidate_count"]:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if not isinstance(preview_id,str) or not preview_id.startswith("preview-") or len(preview_id)!=72: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if not isinstance(receipt,dict) or set(receipt)!=_AUDIT_RECEIPT_KEYS or receipt.get("operation")!=MAINTENANCE_OPERATION or receipt.get("ledger_operation")!=MAINTENANCE_OPERATION or receipt.get("endpoint")!=MAINTENANCE_ENDPOINT or receipt.get("role")!=MAINTENANCE_ROLE or receipt.get("request_id")!=request_id or receipt.get("subject_id")!=subject_id or receipt.get("durable") is not True:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return {"preview":preview,"preview_id":preview_id,"audit_receipt":receipt}

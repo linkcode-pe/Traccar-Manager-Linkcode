@@ -36,3 +36,9 @@ La retención de posiciones/MySQL permanece fuera de este incremento y no se toc
 La operación recorre el flujo auditado de nueve eventos (request, validation, preview, autorización RBAC_READ, audit prepare, result y finalization) sobre el ledger compartido. Se añadió un recibo de finalización genérico verificable para operaciones read-only que no tienen el schema específico de systemd.
 
 Este incremento **no está desplegado en producción y no expone todavía una ruta HTTP ni botón en el dashboard**. Tampoco existe operación de borrado. El siguiente incremento será el cliente Manager/UDS y la API/UI de preview, manteniendo la operación no destructiva.
+
+## Incremento 3 — Manager API y dashboard de Preview
+
+El Manager incorpora el puente `Manager -> UDS -> Worker` para `maintenance.logs.preview`, verifica el recibo contra el ledger compartido antes de devolver datos y expone `GET /api/maintenance/logs/preview` únicamente a sesiones con el rol correspondiente. El dashboard añade un Centro de mantenimiento con retención configurable (30–3650 días), cantidad de candidatos, bytes potencialmente recuperables y listado de archivos candidatos.
+
+La interfaz usa exclusivamente nodos de texto para representar nombres/fechas devueltos por el Worker y conserva explícitamente `destructive_action_performed=false`. **No existe endpoint, botón ni operación de borrado en este incremento.** Este código permanece en la rama Phase 4 y aún no está desplegado en producción.
