@@ -151,3 +151,6 @@ El ejecutor sandbox abre cada candidato con `O_NOFOLLOW`, captura `st_dev/st_ino
 
 ## Incremento 31 - Execute single-use y concurrencia
 Cada `preparation_id` sandbox debe adquirir un claim durable mediante creación atómica `O_CREAT|O_EXCL` antes de revalidar o mutar. Bajo 12 consumidores concurrentes exactamente uno obtiene el claim y los demás reciben `PREPARATION_ALREADY_CONSUMED`. Los claims están restringidos al sandbox y `/opt/traccar/logs` es rechazado. Esto protege doble clic, retry y carreras concurrentes. Producción continúa `DENY_PRODUCTION`.
+
+## Incremento 32 - Fingerprint inmutable del plan Execute
+El ejecutor sandbox vincula la autorización al contenido exacto mediante SHA-256 canónico sobre operación, `preparation_id`, lista ordenada tal como fue preparada y `retention_days`. La verificación ocurre antes del claim y de cualquier mutación. Cambiar ID, candidato o retención produce `PLAN_FINGERPRINT_MISMATCH`; no se crea claim ni se toca el archivo. La comparación usa `hmac.compare_digest`. Producción sigue `DENY_PRODUCTION`.
