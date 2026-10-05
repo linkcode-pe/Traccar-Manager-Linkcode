@@ -188,3 +188,7 @@ La prueba E2E productiva detectó que `cutoff_utc` variaba cada segundo, haciend
 
 ## Incremento 43 - Contrato EXECUTE de consumo único
 El gate no destructivo de EXECUTE exige ahora nonce válido dentro de la preparación durable. `PreparationConsumptionStore` liga el consumo a preparation_id, preview, retención, candidatos, vigencia y one_time_nonce, persiste con flock+fsync y rechaza replay como `PREPARATION_ALREADY_CONSUMED`. El consumo ocurre sólo después de AUDIT_PREPARE. No existe unlink en este incremento; producción permanece DENY_PRODUCTION.
+
+
+## Incremento 44 - EXECUTE conectado al runtime UDS Worker
+El runtime productivo reconoce `maintenance.logs.execute`, reconstruye una `LogRetentionPreparation` tipada y ejecuta el dispatcher auditado con PreparationStore + ConsumptionStore durables. La secuencia permanece `AUDIT_PREPARE → consume once → FEATURE_GATE_BLOCKED`; no existe unlink. Suite UDS ejecutada como usuario Worker: 16/16 OK.

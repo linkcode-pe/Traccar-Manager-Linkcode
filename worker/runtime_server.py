@@ -32,6 +32,9 @@ from worker.maintenance_preview_dispatch import (
     TARGET as MAINTENANCE_TARGET, execute as execute_maintenance_preview,
 )
 from worker.operations.log_retention_preparation_store import PreparationStore
+from worker.operations.log_retention_consumption import PreparationConsumptionStore
+from worker.operations.log_retention_prepare import LogRetentionPreparation
+from worker.maintenance_execute_dispatch import MaintenanceExecuteError, OPERATION as MAINTENANCE_EXECUTE_OPERATION, ROLE as MAINTENANCE_EXECUTE_ROLE, TARGET as MAINTENANCE_EXECUTE_TARGET, execute as execute_maintenance_execute
 from worker.retention_boundary_client import query_health as query_retention_boundary_health, BoundaryUnavailable
 from worker.maintenance_prepare_dispatch import (
     MaintenancePrepareError, OPERATION as MAINTENANCE_PREPARE_OPERATION, ROLE as MAINTENANCE_PREPARE_ROLE,
@@ -52,6 +55,7 @@ PROTOCOL_VERSION = 1
 ENDPOINT = "/api/dashboard/snapshot"
 MAINTENANCE_ENDPOINT = "/api/maintenance/logs/preview"
 MAINTENANCE_PREPARE_ENDPOINT = "/api/maintenance/logs/prepare"
+MAINTENANCE_EXECUTE_ENDPOINT = "/api/maintenance/logs/execute"
 BOUNDARY_HEALTH_OPERATION = "maintenance.boundary.health"
 BOUNDARY_HEALTH_ROLE = "maintenance.logs.preview"
 MAX_MESSAGE_BYTES = 8192
@@ -123,6 +127,8 @@ def _read_message(connection: socket.socket) -> dict[str, object]:
                 or type(payload.get("retention_days")) is not int or not 30<=payload["retention_days"]<=3650
                 or not isinstance(payload.get("preview_id"),str) or not payload["preview_id"].startswith("preview-") or len(payload["preview_id"])!=72
                 or roles != [MAINTENANCE_PREPARE_ROLE]): raise RequestError()
+    elif operation == MAINTENANCE_EXECUTE_OPERATION:
+        if (not isinstance(payload,dict) or set(payload)!={"preparation","confirmation","nonce"} or roles != [MAINTENANCE_EXECUTE_ROLE] or not isinstance(payload.get("preparation"),dict) or not isinstance(payload.get("confirmation"),str) or not isinstance(payload.get("nonce"),str)): raise RequestError()
     else:
         raise RequestError()
     request_id = message.get("request_id")
@@ -274,6 +280,14 @@ def _perform_maintenance_prepare(message: dict[str,object], ledger: AuditLedger,
     if not isinstance(receipt,dict): raise RequestError()
     return {"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_PREPARE_OPERATION,"request_id":message["request_id"],"outcome":"SUCCEEDED","preview_id":result["preview_id"],"preparation":result["preparation"],"preparation_stored":result.get("preparation_stored") is True,"execution_readiness":result.get("execution_readiness"),"boundary_execute_probe":result.get("boundary_execute_probe"),"boundary_candidate_count":result.get("boundary_candidate_count"),"audit_receipt":receipt}
 
+
+def _perform_maintenance_execute(message, ledger, preparation_store, consumption_store):
+    try:
+        p=LogRetentionPreparation(**message["payload"]["preparation"])
+        result=execute_maintenance_execute(ledger=ledger,request_id=message["request_id"],subject_id=message["subject_id"],roles=(MAINTENANCE_EXECUTE_ROLE,),preparation=p,confirmation=message["payload"]["confirmation"],nonce=message["payload"]["nonce"],consumption_store=consumption_store,preparation_store=preparation_store)
+    except (TypeError,MaintenanceExecuteError): raise RequestError() from None
+    return {"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_EXECUTE_OPERATION,"request_id":message["request_id"],"outcome":"SUCCEEDED","execution":result}
+
 def _respond(connection: socket.socket, request_id: str, *, operation: str = OPERATION, result=None) -> None:
     if result is not None:
         payload = result
@@ -311,7 +325,7 @@ def _check_runtime(worker_uid: int, ipc_gid: int) -> None:
         raise OSError("socket path already exists")
 
 
-def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None, maintenance_prepare_ledger: AuditLedger | None = None, preparation_store: PreparationStore|None=None) -> None:
+def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None, maintenance_prepare_ledger: AuditLedger | None = None, preparation_store: PreparationStore|None=None, maintenance_execute_ledger=None, consumption_store=None) -> None:
     request_id = "invalid"
     operation = OPERATION
     try:
@@ -328,6 +342,8 @@ def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: Au
             result = _perform_maintenance(message, maintenance_ledger)
         elif operation == MAINTENANCE_PREPARE_OPERATION and maintenance_prepare_ledger is not None:
             result = _perform_maintenance_prepare(message, maintenance_prepare_ledger, preparation_store)
+        elif operation == MAINTENANCE_EXECUTE_OPERATION and maintenance_execute_ledger is not None and consumption_store is not None:
+            result=_perform_maintenance_execute(message,maintenance_execute_ledger,preparation_store,consumption_store)
         else:
             raise RequestError()
         _respond(connection, request_id, operation=operation, result=result)
@@ -378,6 +394,9 @@ def serve_forever() -> None:
     if not maintenance_ledger.verify().valid or not maintenance_prepare_ledger.verify().valid:
         raise SystemExit(1)
     preparation_store = PreparationStore(Path("/var/lib/traccar-manager-worker/maintenance-preparations.jsonl"))
+    consumption_store = PreparationConsumptionStore(Path("/var/lib/traccar-manager-worker/maintenance-consumptions.jsonl"))
+    maintenance_execute_ledger = AuditLedger(AUDIT_PATH,create_mode=0o640,expected_owner_uid=os.geteuid(),expected_group_gid=worker_gid,expected_file_mode=0o640,expected_directory_mode=0o750,event_metadata={"endpoint":MAINTENANCE_EXECUTE_ENDPOINT,"protocol_operation":MAINTENANCE_EXECUTE_OPERATION})
+    if not maintenance_execute_ledger.verify().valid: raise SystemExit(1)
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     listener.settimeout(1.0)
     listener.bind(SOCKET_PATH)
@@ -398,7 +417,7 @@ def serve_forever() -> None:
                     break
                 raise
             with connection:
-                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger, maintenance_prepare_ledger, preparation_store)
+                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger, maintenance_prepare_ledger, preparation_store, maintenance_execute_ledger, consumption_store)
     finally:
         listener.close()
         try:
