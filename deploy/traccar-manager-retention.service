@@ -3,7 +3,7 @@ Description=Traccar Manager retention boundary (DENY_PRODUCTION)
 After=local-fs.target
 [Service]
 Type=simple
-User=traccar-manager-retention
+DynamicUser=yes
 Group=traccar-manager-retention
 WorkingDirectory=/opt/traccar-manager
 ExecStart=/usr/bin/python3 -B /opt/traccar-manager/worker/retention_boundary_server.py

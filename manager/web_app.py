@@ -87,7 +87,7 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Ejecutar bloqueado</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span>Servicio de frontera preparado · instalación pendiente · DENY_PRODUCTION</span><span>Sin red · sin shell · Allowlist: tracker-server.log.YYYYMMDD · log activo protegido</span></div>
+        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Ejecutar bloqueado</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span>Servicio de frontera aislado · DynamicUser · DENY_PRODUCTION</span><span>Sin red · sin shell · Allowlist: tracker-server.log.YYYYMMDD · log activo protegido</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
