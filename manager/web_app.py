@@ -93,7 +93,7 @@ PAGE = """<!doctype html>
         <button id="preview-logs-button" type="button">Analizar logs</button>
         <button id="prepare-logs-button" class="secondary" type="button" hidden>Preparar limpieza</button>
         <p id="maintenance-preparation" class="muted" hidden></p>
-        <div id="maintenance-security" class="security-checks" hidden><strong>Controles verificados antes de ejecutar</strong><span>Preparación ligada a la sesión</span><span>Auditoría durable antes del consumo</span><span>Autorización one-shot y anti-replay</span><span>Revalidación del plan antes de cualquier mutación</span></div>
+        <div id="maintenance-security" class="security-checks" hidden><strong>Controles verificados antes de ejecutar</strong><span>Preparación ligada a la sesión y registrada durablemente</span><span>Auditoría durable antes del consumo</span><span>Autorización one-shot y anti-replay</span><span>Revalidación del plan antes de cualquier mutación</span></div>
         <p id="maintenance-state" class="status">Sin análisis</p>
         <p id="maintenance-detail" class="muted">No se ha ejecutado ninguna vista previa.</p>
         <div id="maintenance-summary" class="maintenance-summary" hidden>

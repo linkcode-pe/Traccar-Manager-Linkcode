@@ -31,6 +31,7 @@ from worker.maintenance_preview_dispatch import (
     MaintenancePreviewError, OPERATION as MAINTENANCE_OPERATION, ROLE as MAINTENANCE_ROLE,
     TARGET as MAINTENANCE_TARGET, execute as execute_maintenance_preview,
 )
+from worker.operations.log_retention_preparation_store import PreparationStore
 from worker.maintenance_prepare_dispatch import (
     MaintenancePrepareError, OPERATION as MAINTENANCE_PREPARE_OPERATION, ROLE as MAINTENANCE_PREPARE_ROLE,
     TARGET as MAINTENANCE_PREPARE_TARGET, execute as execute_maintenance_prepare,
@@ -260,9 +261,9 @@ def _perform_maintenance(message: dict[str, object], ledger: AuditLedger) -> dic
     }
 
 
-def _perform_maintenance_prepare(message: dict[str,object], ledger: AuditLedger) -> dict[str,object]:
+def _perform_maintenance_prepare(message: dict[str,object], ledger: AuditLedger, preparation_store: PreparationStore|None=None) -> dict[str,object]:
     if message.get("operation")!=MAINTENANCE_PREPARE_OPERATION or message.get("roles")!=[MAINTENANCE_PREPARE_ROLE] or not isinstance(message.get("payload"),dict): raise RequestError()
-    try: result=execute_maintenance_prepare(ledger=ledger,request_id=message["request_id"],subject_id=message["subject_id"],roles=(MAINTENANCE_PREPARE_ROLE,),preview_id=message["payload"]["preview_id"],retention_days=message["payload"]["retention_days"])
+    try: result=execute_maintenance_prepare(ledger=ledger,request_id=message["request_id"],subject_id=message["subject_id"],roles=(MAINTENANCE_PREPARE_ROLE,),preview_id=message["payload"]["preview_id"],retention_days=message["payload"]["retention_days"],preparation_store=preparation_store)
     except MaintenancePrepareError: raise RequestError() from None
     receipt=ledger.finalization_receipt_generic(request_id=message["request_id"],subject_id=message["subject_id"],role=MAINTENANCE_PREPARE_ROLE,endpoint=MAINTENANCE_PREPARE_ENDPOINT,protocol_operation=MAINTENANCE_PREPARE_OPERATION,operation=MAINTENANCE_PREPARE_OPERATION,target=MAINTENANCE_PREPARE_TARGET)
     if not isinstance(receipt,dict): raise RequestError()
@@ -305,7 +306,7 @@ def _check_runtime(worker_uid: int, ipc_gid: int) -> None:
         raise OSError("socket path already exists")
 
 
-def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None, maintenance_prepare_ledger: AuditLedger | None = None) -> None:
+def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None, maintenance_prepare_ledger: AuditLedger | None = None, preparation_store: PreparationStore|None=None) -> None:
     request_id = "invalid"
     operation = OPERATION
     try:
@@ -319,7 +320,7 @@ def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: Au
         elif operation == MAINTENANCE_OPERATION and maintenance_ledger is not None:
             result = _perform_maintenance(message, maintenance_ledger)
         elif operation == MAINTENANCE_PREPARE_OPERATION and maintenance_prepare_ledger is not None:
-            result = _perform_maintenance_prepare(message, maintenance_prepare_ledger)
+            result = _perform_maintenance_prepare(message, maintenance_prepare_ledger, preparation_store)
         else:
             raise RequestError()
         _respond(connection, request_id, operation=operation, result=result)
@@ -369,6 +370,7 @@ def serve_forever() -> None:
     )
     if not maintenance_ledger.verify().valid or not maintenance_prepare_ledger.verify().valid:
         raise SystemExit(1)
+    preparation_store = PreparationStore(Path("/var/lib/traccar-manager-worker/maintenance-preparations.jsonl"))
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     listener.settimeout(1.0)
     listener.bind(SOCKET_PATH)
@@ -389,7 +391,7 @@ def serve_forever() -> None:
                     break
                 raise
             with connection:
-                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger, maintenance_prepare_ledger)
+                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger, maintenance_prepare_ledger, preparation_store)
     finally:
         listener.close()
         try:

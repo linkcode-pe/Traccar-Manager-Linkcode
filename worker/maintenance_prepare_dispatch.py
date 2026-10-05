@@ -7,6 +7,7 @@ from uuid import UUID,uuid5
 from worker.audit.ledger import AuditLedger,LedgerEvent,canonical_json
 from worker.operations.log_retention_preview import preview_log_retention
 from worker.operations.log_retention_prepare import prepare_log_retention,LogRetentionPrepareError,_hash,_plan
+from worker.operations.log_retention_preparation_store import PreparationStore,PreparationStoreError
 
 OPERATION="maintenance.logs.prepare"; ROLE=OPERATION
 TARGET={"type":"traccar-log-directory","id":"/opt/traccar/logs"}
@@ -29,7 +30,7 @@ def _append(ledger,event,*,authorization=False,prepare=False,result=False):
  except MaintenancePrepareError:raise
  except Exception:raise MaintenancePrepareError("AUDIT_UNAVAILABLE") from None
 
-def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,...],preview_id:str,retention_days:int=90)->dict[str,Any]:
+def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,...],preview_id:str,retention_days:int=90,preparation_store:PreparationStore|None=None)->dict[str,Any]:
  if not isinstance(request_id,str) or not request_id or not isinstance(subject_id,str) or not subject_id:raise MaintenancePrepareError("INVALID_REQUEST")
  if not isinstance(roles,tuple) or ROLE not in roles:raise MaintenancePrepareError("FORBIDDEN")
  if not isinstance(preview_id,str) or not preview_id.startswith("preview-") or len(preview_id)!=72 or type(retention_days) is not int or not 30<=retention_days<=3650:raise MaintenancePrepareError("INVALID_REQUEST")
@@ -54,4 +55,7 @@ def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,.
  _append(ledger,_event(**common,event_type="EXECUTION_COMPLETED",phase="AUDIT_RESULT",actor=WORKER_ACTOR,status="COMPLETED",authorization=granted,result_code="OK",result=result),result=True)
  _append(ledger,_event(**common,event_type="AUDIT_FINALIZED",phase="AUDIT_FINALIZATION",actor=WORKER_ACTOR,status="FINALIZED",authorization=granted,result_code="OK",result=result))
  if not ledger.verify().valid:raise MaintenancePrepareError("AUDIT_UNAVAILABLE")
- return {"preparation":plan,"preview_id":preview_id,"audit_preview_id":audit_preview_id,"destructive_action_performed":False}
+ if preparation_store is not None:
+  try: preparation_store.issue(prep,subject_id=subject_id)
+  except PreparationStoreError as exc: raise MaintenancePrepareError(str(exc)) from None
+ return {"preparation":plan,"preview_id":preview_id,"audit_preview_id":audit_preview_id,"destructive_action_performed":False,"preparation_stored":preparation_store is not None}

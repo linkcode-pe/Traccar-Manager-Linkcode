@@ -46,3 +46,21 @@ class MaintenancePrepareParserTests(unittest.TestCase):
   self.assertEqual(msg,r._read_message(Sock(json.dumps(msg).encode()+b'\n')))
   for bad in ({**msg,'roles':['maintenance.logs.preview']},{**msg,'payload':{'retention_days':90,'preview_id':'bad'}},{**msg,'payload':{'retention_days':90,'preview_id':'preview-'+'1'*64,'path':'/tmp'}}):
    with self.assertRaises(r.RequestError):r._read_message(Sock(json.dumps(bad).encode()+b'\n'))
+
+class PreparationStoreIntegrationTests(unittest.TestCase):
+ def test_prepare_is_durably_bound_to_actor(self):
+  import tempfile
+  from pathlib import Path
+  from datetime import datetime,timezone
+  from worker.operations.log_retention_preparation_store import PreparationStore
+  from worker.operations.log_retention_prepare import _hash,_plan
+  from worker.operations.log_retention_preview import LogRetentionPreview
+  with tempfile.TemporaryDirectory() as td:
+   pv=LogRetentionPreview('/opt/traccar/logs',90,'2026-07-07T00:00:00Z',0,0,()); pid='preview-'+_hash(_plan(pv)); store=PreparationStore(Path(td)/'issued.jsonl')
+   import worker.maintenance_prepare_dispatch as m
+   old=m.preview_log_retention;m.preview_log_retention=lambda *a,**k:pv
+   try:
+    result=m.execute(ledger=AuditLedger(Path(td)/'audit.jsonl'),request_id='prep-store-1',subject_id='a'*32,roles=(m.ROLE,),preview_id=pid,retention_days=90,preparation_store=store)
+    from worker.operations.log_retention_prepare import LogRetentionPreparation
+    prep=LogRetentionPreparation(**result['preparation']);self.assertTrue(result['preparation_stored']);self.assertTrue(store.verify(prep,subject_id='a'*32))
+   finally:m.preview_log_retention=old

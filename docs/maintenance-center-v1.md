@@ -94,3 +94,6 @@ El Execute aislado vincula preparación completa + actor + confirmación + huell
 
 ## Incremento 14 - Visibilidad de controles de Execute en Manager
 La UI de producción puede exponer, únicamente después de una preparación auditada válida, los controles ya validados en código aislado: binding de sesión/actor, auditoría durable antes del consumo, autorización one-shot anti-replay y revalidación del plan. Esto es transparencia de estado, no habilitación: el tercer paso permanece `Ejecutar bloqueado` y no existe endpoint destructivo web.
+
+## Incremento 15 - PreparationStore integrado al Worker
+El flujo PREPARE del Worker ahora registra cada preparación exitosa en un `PreparationStore` durable propiedad del Worker, vinculada al `subject_id`, después de finalizar y verificar la auditoría. El store reside bajo `/var/lib/traccar-manager-worker/maintenance-preparations.jsonl`, no contiene primitivas destructivas y todavía no habilita Execute. La UI refleja que la preparación está ligada a sesión y registrada durablemente.
