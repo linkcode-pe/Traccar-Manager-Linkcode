@@ -58,3 +58,7 @@ La licencia permanece pendiente de decisión del propietario; `LICENSE` no debe 
 ## Dirección de producto V1
 
 El alcance rector está en `docs/product-master-v1.md` y el estado modular en `docs/v1-module-status.md`.
+
+## Interfaz única
+
+Traccar Manager se publica bajo `/manager/`. El antiguo `/panel/` está retirado y no debe recibir nuevas funciones ni scripts.

@@ -11,7 +11,7 @@ Traccar Manager Linkcode es una plataforma/plugin web reutilizable para administ
 - Lectura y escritura usan permisos distintos.
 - Destructivas: DETECTAR -> PREVIEW -> CLASIFICAR -> CONFIRMAR -> RESPALDAR -> REVALIDAR -> EJECUTAR -> VERIFICAR -> AUDITAR.
 - No existe SQL libre ni explorador/borrador arbitrario de filesystem.
-- Estilo oficial derivado de /panel: oscuro azul-negro, tarjetas compactas, acento cian y responsive.
+- Manager es la única interfaz y plano de control del producto. El antiguo Panel queda retirado. Su lenguaje visual oscuro azul-negro, tarjetas compactas, acento cian y responsive se conserva dentro de Manager, sin dependencia de `/panel`.
 - Secretos/backups/datos privados no entran a Git.
 - Ninguna función debe depender de homecargps.com, IDs locales o una única cuenta.
 
@@ -82,6 +82,13 @@ Una instalación Traccar compatible puede instalar Manager desde cero, iniciar s
 
 ## Fuera de alcance V1
 Shell web, phpMyAdmin/SQL libre, filesystem arbitrario, administración general Linux, modificar binarios de Traccar y destructivas masivas sin preview/confirmación/revalidación/auditoría.
+
+## Decisión de consolidación — 2026-10-05
+- `/manager/` es la única interfaz operativa.
+- `/panel/` queda retirado y redirige a `/manager/`; su telemetría programada queda deshabilitada.
+- Los jobs legacy de retención de logs 30d y base de datos 90d quedan deshabilitados. Sus capacidades deberán migrarse a operaciones Manager con RBAC, preview, auditoría y gates antes de volver a activarse.
+- No se crearán nuevos scripts autónomos de administración fuera de Manager/Worker.
+- Los artefactos legacy pueden conservarse temporalmente solo como rollback hasta completar su retirada; no son autoridad ni runtime activo.
 
 ## Estado de referencia — 2026-10-05
 Core seguro activo. Phase 4 está en `phase4/maintenance-center`. Preview de logs está desplegado, no destructivo y con métricas estilo `/panel`. M2 `maintenance.logs.prepare` ya tiene core y gate Worker/RBAC/auditoría en desarrollo; todavía no existe borrado real. Siguiente frontera: puente Manager/UI de preparación, manteniendo `maintenance.logs.execute` inexistente.

@@ -15,3 +15,6 @@
 | M10 | Release/upgrade | PLANNED | paquete/versionado |
 
 Actualizar con cada cambio real. Nunca marcar ENABLED por existir solo UI, documentación o código.
+
+## Consolidación de runtime
+Manager/Worker son el único plano de control. Panel legacy y timers destructivos legacy: DISABLED. Toda automatización futura debe entrar por contratos Manager/Worker auditados.
