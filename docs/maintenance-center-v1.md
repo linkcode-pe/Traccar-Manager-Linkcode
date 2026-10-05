@@ -136,3 +136,6 @@ El dashboard auditado puede completar correctamente después de más de 8 segund
 
 ## Incremento 26 - Revalidación final conectada al Execute de Boundary
 La solicitud Execute ahora incluye `retention_days`. Retention Boundary revalida cada candidato contra `/opt/traccar/logs` justo antes del gate final: nombre, expiración, archivo regular y `O_NOFOLLOW`. Si alguno falla responde `DENIED_BY_REVALIDATION`; sólo si todos pasan responde `DENIED_BY_PRODUCTION_GATE` con `revalidated_count=N`. Sigue sin existir mutación. Se conserva además el timeout UDS de dashboard validado en 15 s.
+
+## Incremento 27 - Ejecutor destructivo validado exclusivamente en sandbox
+Se implementó el primer ejecutor que realiza una mutación real, pero contiene una barrera de ruta que sólo autoriza directorios bajo `/tmp/traccar-manager-retention-sandbox/` y exige autorización explícita de sandbox. Reutiliza la revalidación final y elimina mediante `unlink(..., dir_fd=...)`. Las pruebas demuestran borrado de histórico sandbox, rechazo de symlink, rechazo sin autorización y rechazo absoluto de `/opt/traccar/logs`. El servicio productivo no importa ni invoca este ejecutor; `DENY_PRODUCTION` permanece intacto.
