@@ -154,3 +154,6 @@ Cada `preparation_id` sandbox debe adquirir un claim durable mediante creación 
 
 ## Incremento 32 - Fingerprint inmutable del plan Execute
 El ejecutor sandbox vincula la autorización al contenido exacto mediante SHA-256 canónico sobre operación, `preparation_id`, lista ordenada tal como fue preparada y `retention_days`. La verificación ocurre antes del claim y de cualquier mutación. Cambiar ID, candidato o retención produce `PLAN_FINGERPRINT_MISMATCH`; no se crea claim ni se toca el archivo. La comparación usa `hmac.compare_digest`. Producción sigue `DENY_PRODUCTION`.
+
+## Incremento 33 - Autenticidad HMAC del plan
+Se añadió el primitivo HMAC-SHA256 que autentica la huella canónica del plan exacto. Exige clave >=32 bytes y usa `hmac.compare_digest`; cualquier cambio de candidatos, retención o clave invalida el token. En esta fase el secreto no se crea ni se entrega a Manager/UI: el módulo queda preparado para que únicamente Retention Boundary cargue la clave desde credencial systemd en el siguiente gate. Producción sigue `DENY_PRODUCTION`.
