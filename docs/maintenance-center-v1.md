@@ -121,3 +121,6 @@ Manager consulta el estado de la frontera mediante el UDS existente del Worker. 
 
 ## Incremento 22 - Execute protocol probado contra gate final DENY_PRODUCTION
 Retention Boundary acepta ahora una solicitud estructurada exclusivamente para `DELETE_EXPIRED_HISTORICAL_LOGS` con nombres allowlisted. Una solicitud válida se valida y alcanza el gate final, que responde `DENIED_BY_PRODUCTION_GATE`; una solicitud con log activo, traversal u operación fuera de allowlist se rechaza antes. En todos los casos `production_access=false` y `destructive_action_performed=false`. No existe mutación productiva.
+
+## Incremento 23 - Plan real de Prepare alcanza Boundary sin mutación
+Después de revalidar Preview y persistir la preparación, Worker extrae exactamente los nombres candidatos del Preview revalidado y los envía a Retention Boundary. Boundary valida la allowlist y responde `DENIED_BY_PRODUCTION_GATE`. El resultado vuelve por Worker/UDS/Manager y la UI muestra el número real de candidatos cuyo Execute fue rechazado. `production_access=false` y no existe borrado.

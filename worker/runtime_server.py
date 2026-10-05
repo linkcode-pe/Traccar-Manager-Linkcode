@@ -272,7 +272,7 @@ def _perform_maintenance_prepare(message: dict[str,object], ledger: AuditLedger,
     except MaintenancePrepareError: raise RequestError() from None
     receipt=ledger.finalization_receipt_generic(request_id=message["request_id"],subject_id=message["subject_id"],role=MAINTENANCE_PREPARE_ROLE,endpoint=MAINTENANCE_PREPARE_ENDPOINT,protocol_operation=MAINTENANCE_PREPARE_OPERATION,operation=MAINTENANCE_PREPARE_OPERATION,target=MAINTENANCE_PREPARE_TARGET)
     if not isinstance(receipt,dict): raise RequestError()
-    return {"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_PREPARE_OPERATION,"request_id":message["request_id"],"outcome":"SUCCEEDED","preview_id":result["preview_id"],"preparation":result["preparation"],"preparation_stored":result.get("preparation_stored") is True,"execution_readiness":result.get("execution_readiness"),"audit_receipt":receipt}
+    return {"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_PREPARE_OPERATION,"request_id":message["request_id"],"outcome":"SUCCEEDED","preview_id":result["preview_id"],"preparation":result["preparation"],"preparation_stored":result.get("preparation_stored") is True,"execution_readiness":result.get("execution_readiness"),"boundary_execute_probe":result.get("boundary_execute_probe"),"boundary_candidate_count":result.get("boundary_candidate_count"),"audit_receipt":receipt}
 
 def _respond(connection: socket.socket, request_id: str, *, operation: str = OPERATION, result=None) -> None:
     if result is not None:
