@@ -16,3 +16,17 @@ class Tests(unittest.TestCase):
  def test_forbidden_does_not_consume(self):
   with self.assertRaisesRegex(MaintenanceExecuteError,'FORBIDDEN'):execute(ledger=self.ledger,request_id='execute-3',subject_id='a'*32,roles=(),preparation=self.prep,confirmation='CONFIRMAR LIMPIEZA',nonce=self.prep.one_time_nonce,consumption_store=self.store,preview_provider=lambda *a,**k:self.p)
   self.assertFalse(self.store.path.exists())
+
+class FailingPrepareLedger(AuditLedger):
+ def prepare_execution(self,event):
+  raise OSError('injected audit prepare failure')
+
+class OrderingTests(Tests):
+ def test_audit_prepare_failure_does_not_consume(self):
+  ledger=FailingPrepareLedger(Path(self.t.name)/'failing-audit.jsonl')
+  with self.assertRaisesRegex(MaintenanceExecuteError,'AUDIT_UNAVAILABLE'):
+   execute(ledger=ledger,request_id='execute-order-fail',subject_id='a'*32,roles=(ROLE,),preparation=self.prep,confirmation='CONFIRMAR LIMPIEZA',nonce=self.prep.one_time_nonce,consumption_store=self.store,preview_provider=lambda *a,**k:self.p)
+  self.assertFalse(self.store.path.exists())
+ def test_successful_audit_prepare_then_consumes(self):
+  r=execute(ledger=self.ledger,request_id='execute-order-ok',subject_id='a'*32,roles=(ROLE,),preparation=self.prep,confirmation='CONFIRMAR LIMPIEZA',nonce=self.prep.one_time_nonce,consumption_store=self.store,preview_provider=lambda *a,**k:self.p)
+  self.assertTrue(r['gate']['authorization_consumed']);self.assertTrue(self.store.path.exists())

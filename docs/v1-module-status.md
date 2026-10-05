@@ -23,3 +23,4 @@ Manager/Worker son el único plano de control. Panel legacy y timers destructivo
 Panel runtime RETIRABLE; auth/status REEMPLAZADOS; visual MIGRADO; DB/disco PENDIENTES; logs REEMPLAZADO_PARCIAL por M2; retencion DB PENDIENTE_CRITICO en M3. Ver `docs/panel-to-manager-audit-2026-10-05.md`.
 
 - M2 Execute security: B1 PreparationStore actor-bound implementado en codigo aislado; B2 orden audit-prepare -> consumo sigue pendiente.
+- M2 Execute security: B2 AUDIT_PREPARE durable antes de consumo one-shot implementado y probado en código aislado; Execute continúa fuera de runtime.

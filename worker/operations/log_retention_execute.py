@@ -20,7 +20,7 @@ def _parse(v:str)->datetime:
 
 def validate_execution_gate(preparation:LogRetentionPreparation,*,confirmation:str,nonce:str,
                             preview_provider:Callable[...,LogRetentionPreview]=preview_log_retention,
-                            now:datetime|None=None, consumption_store:PreparationConsumptionStore|None=None)->LogRetentionExecutionGate:
+                            now:datetime|None=None, consumption_store:PreparationConsumptionStore|None=None, consume:bool=True)->LogRetentionExecutionGate:
     if not isinstance(preparation,LogRetentionPreparation) or preparation.revalidated is not True or preparation.destructive_action_performed is not False:raise LogRetentionExecuteError('INVALID_PREPARATION')
     if confirmation!='CONFIRMAR LIMPIEZA':raise LogRetentionExecuteError('CONFIRMATION_REQUIRED')
     if nonce!=preparation.one_time_nonce:raise LogRetentionExecuteError('NONCE_MISMATCH')
@@ -30,7 +30,7 @@ def validate_execution_gate(preparation:LogRetentionPreparation,*,confirmation:s
     if 'preview-'+digest!=preparation.preview_id or digest!=preparation.preview_hash:raise LogRetentionExecuteError('PREVIEW_STALE')
     if fresh.active_log_protected is not True or fresh.destructive_action_performed is not False:raise LogRetentionExecuteError('UNSAFE_PREVIEW')
     consumed=False
-    if consumption_store is not None:
+    if consume and consumption_store is not None:
         try: consumption_store.consume(preparation); consumed=True
         except PreparationConsumptionError as exc: raise LogRetentionExecuteError(str(exc)) from None
     # Hard feature gate: consumption can be proven one-time, but deletion remains unreachable.

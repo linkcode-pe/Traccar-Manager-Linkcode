@@ -58,3 +58,6 @@ No debe ser alcanzable desde parser/runtime productivo. Antes de promover el hel
 
 ## Avance B1
 Incremento 11 implementa y prueba `PreparationStore` durable actor-bound. B1 queda RESUELTO_EN_CODIGO_AISLADO, pendiente de integración posterior; B2 continúa bloqueante.
+
+## Avance B2
+Incremento 12 reordena el flujo a revalidación -> autorización/auditoría -> `AUDIT_PREPARE` durable -> consumo one-shot. Un fallo inyectado de `AUDIT_PREPARE` no consume la preparación. B2 queda RESUELTO_EN_CODIGO_AISLADO; continúa pendiente integrar B1+B2 juntos y resolver binding completo de parámetros/autorización antes de runtime.

@@ -29,7 +29,7 @@ def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,.
  if not isinstance(roles,tuple) or ROLE not in roles:raise MaintenanceExecuteError('FORBIDDEN')
  payload={"preparation_id":getattr(preparation,'preparation_id',None),"confirmation":confirmation};ph=_d(payload);j='job-'+str(uuid5(_NAMESPACE,'job:'+request_id));human={"subject_id":subject_id,"actor_type":"human","roles":[ROLE]}
  for et,phase,status in (("REQUEST_RECEIVED","REQUEST","RECEIVED"),("VALIDATION_PASSED","VALIDATION","PASSED"),("PREVIEW_STARTED","PREVIEW","STARTED")):_a(ledger,_event(request_id,j,subject_id,ph,et,phase,human,status=status))
- kwargs={"confirmation":confirmation,"nonce":nonce,"consumption_store":consumption_store}
+ kwargs={"confirmation":confirmation,"nonce":nonce,"consumption_store":None,"consume":False}
  if preview_provider is not None:kwargs['preview_provider']=preview_provider
  if now is not None:kwargs['now']=now
  try: gate=validate_execution_gate(preparation,**kwargs)
@@ -40,6 +40,11 @@ def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,.
  _a(ledger,_event(**common,event_type="AUTHORIZATION_REQUESTED",phase="AUTHORIZATION",actor=human,status="REQUESTED",authorization=auth),kind='auth')
  granted=dict(auth,decision="GRANTED"); _a(ledger,_event(**common,event_type="AUTHORIZATION_GRANTED",phase="AUTHORIZATION",actor=POLICY_ACTOR,status="GRANTED",authorization=granted),kind='auth')
  _a(ledger,_event(**common,event_type="EXECUTION_STARTED",phase="AUDIT_PREPARE",actor=WORKER_ACTOR,status="STARTED",authorization=granted),kind='prepare')
+ try:
+  consumption_store.consume(preparation)
+ except Exception as exc:
+  raise MaintenanceExecuteError(str(exc)) from None
+ plan["authorization_consumed"]=True
  result={"confirmed":True,"outcome":"BLOCKED_BY_FEATURE_GATE","gate":plan,"destructive_action_performed":False}
  _a(ledger,_event(**common,event_type="EXECUTION_COMPLETED",phase="AUDIT_RESULT",actor=WORKER_ACTOR,status="COMPLETED",authorization=granted,result_code="FEATURE_GATE_BLOCKED",result=result),kind='result')
  _a(ledger,_event(**common,event_type="AUDIT_FINALIZED",phase="AUDIT_FINALIZATION",actor=WORKER_ACTOR,status="FINALIZED",authorization=granted,result_code="FEATURE_GATE_BLOCKED",result=result))
