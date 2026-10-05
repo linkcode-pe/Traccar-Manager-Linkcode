@@ -2,6 +2,8 @@
 
 Esta hoja de ruta mantiene una sola dirección de producto: **Traccar Manager Linkcode será una plataforma/plugin web reutilizable para administrar Traccar y sus recursos relacionados, no un administrador general de Linux.**
 
+> Documento rector: `docs/product-master-v1.md`. Estado compacto: `docs/v1-module-status.md`. Ante contradicción histórica, prevalece el mapa maestro para trabajo futuro.
+
 ## Completado / baseline
 
 1. **FASE 1 — Estructura y repositorio.** Estructura, documentación inicial y control de versiones.

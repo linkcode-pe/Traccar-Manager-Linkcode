@@ -55,3 +55,6 @@ Traccar, Traccar Manager, configuración sensible, datos, logs y backups permane
 Consulta `docs/architecture-overview.md`, `docs/development-roadmap.md`, `docs/project-structure.md` y los documentos específicos de seguridad/auditoría para el diseño detallado.
 
 La licencia permanece pendiente de decisión del propietario; `LICENSE` no debe interpretarse como concesión de una licencia hasta que se defina expresamente.
+## Dirección de producto V1
+
+El alcance rector está en `docs/product-master-v1.md` y el estado modular en `docs/v1-module-status.md`.
