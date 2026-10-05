@@ -70,3 +70,6 @@ Se añadió el contrato puro `maintenance.logs.execute` en estado de diseño/gat
 
 ## Incremento 7 — Consumo durable de un solo uso
 El gate Execute incorpora un `PreparationConsumptionStore` append-only con lock exclusivo `flock`, binding hash de todos los campos sensibles de la preparación y `fsync` antes de devolver éxito. Una preparación consumida vuelve a fallar con `PREPARATION_ALREADY_CONSUMED`; una colisión del mismo `preparation_id` con binding distinto falla cerrada. Validaciones fallidas no consumen la preparación. Este store todavía se prueba únicamente en fixtures temporales: no está conectado a HTTP/UDS ni a producción y el gate mantiene `execution_enabled=false` y `destructive_action_performed=false`.
+
+## Incremento 8 — Dispatch y auditoría de Execute bloqueado
+Se incorporó `maintenance_execute_dispatch` para probar la cadena de auditoría completa del futuro Execute: request, validation, preview/revalidation, authorization requested/granted, `AUDIT_PREPARE`, result y finalization. El gate consume durablemente la preparación una sola vez, pero el resultado contractual es `BLOCKED_BY_FEATURE_GATE`; `execution_enabled=false` y `destructive_action_performed=false`. No está registrado en runtime UDS/HTTP ni desplegado. No existe primitiva de borrado en este camino.
