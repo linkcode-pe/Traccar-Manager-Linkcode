@@ -73,3 +73,6 @@ El gate Execute incorpora un `PreparationConsumptionStore` append-only con lock 
 
 ## Incremento 8 — Dispatch y auditoría de Execute bloqueado
 Se incorporó `maintenance_execute_dispatch` para probar la cadena de auditoría completa del futuro Execute: request, validation, preview/revalidation, authorization requested/granted, `AUDIT_PREPARE`, result y finalization. El gate consume durablemente la preparación una sola vez, pero el resultado contractual es `BLOCKED_BY_FEATURE_GATE`; `execution_enabled=false` y `destructive_action_performed=false`. No está registrado en runtime UDS/HTTP ni desplegado. No existe primitiva de borrado en este camino.
+
+## Incremento 9 — Helper destructivo confinado a sandbox
+Se añadió un helper que sí ejecuta `unlink`, pero únicamente contra un directorio sandbox explícito y nunca contra `/opt/traccar` ni `/opt/traccar/logs`. Revalida raíz, nombre allowlisted, tipo de archivo, tamaño y mtime inmediatamente antes del unlink; usa `dir_fd` y `follow_symlinks=false` para reducir escapes/TOCTOU. Las pruebas usan exclusivamente `TemporaryDirectory`, comprueban preservación del log activo, cambio posterior al Preview, sustitución por symlink, mismatch de raíz y conteos exactos. Este helper NO está conectado al Execute, Dispatcher, UDS, HTTP ni producción.
