@@ -157,3 +157,6 @@ El ejecutor sandbox vincula la autorización al contenido exacto mediante SHA-25
 
 ## Incremento 33 - Autenticidad HMAC del plan
 Se añadió el primitivo HMAC-SHA256 que autentica la huella canónica del plan exacto. Exige clave >=32 bytes y usa `hmac.compare_digest`; cualquier cambio de candidatos, retención o clave invalida el token. En esta fase el secreto no se crea ni se entrega a Manager/UI: el módulo queda preparado para que únicamente Retention Boundary cargue la clave desde credencial systemd en el siguiente gate. Producción sigue `DENY_PRODUCTION`.
+
+## Incremento 34 - Secreto HMAC aislado como systemd credential
+Se añadió un cargador fail-closed que sólo acepta `retention-plan-hmac.key` desde `$CREDENTIALS_DIRECTORY`. La unidad Boundary recibe la clave mediante `LoadCredential=`; no se expone por variables de entorno, Manager ni Worker. La fuente persistente queda root-only y systemd materializa una copia privada para el servicio. Producción continúa `DENY_PRODUCTION`.
