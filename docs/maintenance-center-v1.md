@@ -79,3 +79,6 @@ Se añadió un helper que sí ejecuta `unlink`, pero únicamente contra un direc
 
 ## Incremento 10 - Semantica de fallo parcial en sandbox
 El helper sandbox ejecuta preflight completo antes de mutar, revalida identidad inmediatamente antes de cada unlink y rechaza candidatos duplicados. Una prueba con hook exclusivo de test fuerza una carrera entre la segunda revalidacion y el segundo unlink: tras una primera eliminacion valida, el helper responde `PARTIAL_DELETE`. No intenta rollback ficticio. El hook no esta conectado a runtime y el hard-deny de `/opt/traccar` permanece.
+
+## Incremento 11 - Security review Execute
+Revision integral registrada en `docs/m2-execute-security-review-2026-10-05.md`. Resultado: **NO-GO** para runtime destructivo. Se identificaron cuatro bloqueantes: Preparation sin prueba durable de emision, consumo anterior a AUDIT_PREPARE, parameters_hash incompleto y authorization sintetica. El helper permanece sandbox-only y Execute sigue feature-gated.
