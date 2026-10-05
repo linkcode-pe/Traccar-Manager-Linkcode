@@ -133,3 +133,6 @@ Se añadió una revalidación read-only destinada exclusivamente a Retention Bou
 
 ## Hotfix - Dashboard UDS timeout budget
 El dashboard auditado puede completar correctamente después de más de 8 segundos bajo carga; se observaron finalizaciones Worker válidas inmediatamente después de que Manager ya había agotado su timeout. El presupuesto local UDS se eleva a 15 segundos (acotado), manteniendo fail-closed y sin retries. Esto evita falsos `PROVIDER_UNAVAILABLE` sin relajar validación, identidad, auditoría ni permisos.
+
+## Incremento 26 - Revalidación final conectada al Execute de Boundary
+La solicitud Execute ahora incluye `retention_days`. Retention Boundary revalida cada candidato contra `/opt/traccar/logs` justo antes del gate final: nombre, expiración, archivo regular y `O_NOFOLLOW`. Si alguno falla responde `DENIED_BY_REVALIDATION`; sólo si todos pasan responde `DENIED_BY_PRODUCTION_GATE` con `revalidated_count=N`. Sigue sin existir mutación. Se conserva además el timeout UDS de dashboard validado en 15 s.

@@ -66,7 +66,7 @@ def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,.
    if gate.execution_enabled is not False or gate.destructive_action_performed is not False: raise MaintenancePrepareError("UNSAFE_EXECUTION_GATE")
    current_names=[c.name for c in current.candidates]
    if len(current_names)!=prep.candidate_count: raise MaintenancePrepareError("PREVIEW_STALE")
-   denial=probe_execute_denial(current_names) if current_names else {"status":"DENIED_BY_PRODUCTION_GATE","destructive_action_performed":False,"candidate_count":0}
+   denial=probe_execute_denial(current_names,retention_days) if current_names else {"status":"DENIED_BY_PRODUCTION_GATE","destructive_action_performed":False,"candidate_count":0}
    if denial.get("status")!="DENIED_BY_PRODUCTION_GATE" or denial.get("destructive_action_performed") is not False or denial.get("candidate_count")!=prep.candidate_count: raise MaintenancePrepareError("UNSAFE_BOUNDARY_GATE")
    readiness="READY_BLOCKED"
   except (PreparationStoreError,LogRetentionExecuteError,BoundaryUnavailable) as exc: raise MaintenancePrepareError(str(exc)) from None
