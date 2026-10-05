@@ -1,13 +1,30 @@
 # Hoja de ruta de desarrollo
 
-Las fases son una planificación; no implican que estén implementadas ni autorizadas por este documento.
+Esta hoja de ruta mantiene una sola dirección de producto: **Traccar Manager Linkcode será una plataforma/plugin web reutilizable para administrar Traccar y sus recursos relacionados, no un administrador general de Linux.**
 
-1. **FASE 1 — Estructura y repositorio.** Crear la raíz, documentación y control de versiones.
-2. **FASE 2 — Auditoría del servidor y detección segura.** Inventariar y reportar sin modificar.
-3. **FASE 3 — Dashboard web.** Diseñar e implementar después de aprobar requisitos y controles.
-4. **FASE 4 — Administración de Traccar.** Integración controlada, con privilegios mínimos.
-5. **FASE 5 — Mantenimiento y limpieza segura.** Alto riesgo. Primero solo detectar, clasificar, previsualizar y reportar. Cualquier futura eliminación deberá separar: **DETECTAR → PREVISUALIZAR → CLASIFICAR → CONFIRMAR → RESPALDAR → ELIMINAR → VERIFICAR**. Nunca borrar automáticamente.
-6. **FASE 6 — Integración controlada con base de datos.** Diseñar controles antes de cualquier acceso; no habilitar SQL arbitrario.
-7. **FASE 7 — Instalador web.** Diseñar y validar antes de hacerlo funcional.
-8. **FASE 8 — Empaquetado para servidores externos.** Definir compatibilidad, instalación, actualizaciones y recuperación.
-9. **FASE 9 — Plugin/integración futura con Traccar.** Evaluar como evolución separada, sin mezclarlo con la instalación existente.
+## Completado / baseline
+
+1. **FASE 1 — Estructura y repositorio.** Estructura, documentación inicial y control de versiones.
+2. **FASE 2 — Inventario y diseño seguro.** Clasificación de componentes, límites de privilegios y contratos iniciales.
+3. **FASE 3 — Baseline Manager seguro.** Dashboard web, autenticación/sesiones, RBAC, Worker no-root, UDS, auditoría y primer proveedor real `traccar.status.read`. Snapshot validado en `phase3/validated-manager`.
+
+## Siguientes fases
+
+4. **FASE 4 — Centro de mantenimiento.** Llevar al dashboard operaciones predefinidas de diagnóstico, previsualización y limpieza/retención de logs y archivos relacionados con Traccar. Integrar los scripts existentes detrás de Worker + RBAC + auditoría; nunca shell arbitrario desde la web.
+5. **FASE 5 — Mantenimiento de datos Traccar.** Previsualizar y ejecutar políticas de retención de posiciones/datos obsoletos con límites, confirmación, verificación y recuperación. No habilitar SQL arbitrario.
+6. **FASE 6 — Administración Traccar.** Accesos rápidos y flujos controlados para usuarios, vehículos/dispositivos y relaciones necesarias. Preferir interfaces de Traccar cuando sean adecuadas; cualquier acceso directo a datos deberá estar explícitamente diseñado y limitado.
+7. **FASE 7 — Dashboard operativo unificado.** Historial de tareas, resultados, auditoría, estados y controles de mantenimiento en una interfaz coherente.
+8. **FASE 8 — Instalador guiado.** Detectar entorno, validar requisitos, solicitar configuración necesaria, instalar servicios/configuración de Manager y comprobar salud sin incorporar secretos al repositorio.
+9. **FASE 9 — Portabilidad y releases.** Empaquetado, compatibilidad con servidores Traccar externos, upgrades, rollback y documentación de operación.
+
+## Regla para operaciones destructivas
+
+Toda función de limpieza debe conservar el ciclo:
+
+**DETECTAR -> PREVISUALIZAR -> CLASIFICAR -> CONFIRMAR -> RESPALDAR -> EJECUTAR -> VERIFICAR -> AUDITAR**
+
+La automatización puede simplificar pasos operativos, pero no eliminar las fronteras de autorización ni convertir el Manager en una consola administrativa irrestricta.
+
+## Regla de entrega
+
+GitHub es la referencia del código. Cada fase relevante debe actualizar esta documentación, ejecutarse en rama, pasar sus pruebas/gates y revisarse antes de integrarse a `main`.

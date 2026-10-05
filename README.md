@@ -1,42 +1,57 @@
-# Traccar Manager
+# Traccar Manager Linkcode
 
-**Estado:** estructura inicial del proyecto; no implementa todavía funcionalidades web, administración, mantenimiento, integraciones ni instalador.
+**Estado actual:** baseline Phase 3 validado. El Manager web, autenticación/RBAC, Worker no-root, transporte UDS, auditoría encadenada y el proveedor inicial de estado de Traccar están implementados y validados. La administración de datos, usuarios, vehículos y las operaciones de limpieza desde el dashboard siguen siendo fases posteriores y deben incorporarse mediante operaciones explícitas y auditables.
 
-## Propósito
+## Visión permanente
 
-Sistema web independiente para administrar y supervisar un servidor Traccar.
+Traccar Manager Linkcode es una plataforma web independiente y reutilizable para administrar instalaciones Traccar. Su objetivo no es administrar Linux de forma general: su alcance es Traccar, sus datos y los recursos operativos relacionados que el Manager declare expresamente.
 
-## Principio arquitectónico
+La meta del producto es poder instalarlo en este servidor y, posteriormente, llevarlo a otros servidores Traccar mediante un instalador guiado, manteniendo el mismo modelo de permisos, validación, auditoría y recuperación.
 
-Traccar Manager debe funcionar como una aplicación separada de Traccar. En fases futuras podrá interactuar con tablas y servicios de Traccar mediante interfaces claramente definidas, controladas y documentadas. Esta relación no implica que exista hoy una conexión o integración activa.
+## Capacidades objetivo
 
-## Objetivos iniciales
+- Dashboard de diagnóstico y estado de Traccar.
+- Ejecución controlada de tareas de mantenimiento desde la web.
+- Limpieza y retención de posiciones/datos obsoletos de Traccar mediante operaciones predefinidas; nunca SQL arbitrario desde la interfaz.
+- Limpieza y retención de logs de Traccar y otros archivos relacionados previamente clasificados como seguros para mantenimiento.
+- Accesos rápidos para crear y administrar usuarios de Traccar.
+- Consulta y administración controlada de vehículos/dispositivos y relaciones asociadas.
+- Historial y auditoría de las acciones administrativas.
+- Instalación, configuración y actualización reproducibles en servidores externos.
 
-- Administración del servidor Traccar y diagnóstico.
-- Mantenimiento y gestión de archivos.
-- Identificación y reporte de archivos posiblemente innecesarios.
-- Herramientas futuras de limpieza controlada y otras funciones de administración.
-- Documentación técnica y operación segura.
-- Una instalación sencilla en servidores externos que utilicen Traccar.
+## Arquitectura de seguridad
 
-## Separación de componentes
+La web no recibe privilegios generales de root. Las operaciones privilegiadas o sensibles deben atravesar contratos explícitos y una allowlist:
 
-Mantener separados Traccar, Traccar Manager, la configuración, los datos, los logs y los backups. La configuración sensible y los datos de ejecución no pertenecen al repositorio Git.
+```text
+Usuario -> Manager Web -> autenticación/RBAC -> UDS -> Worker no-root
+                                                |          |
+                                                |          +-> operación permitida
+                                                |          +-> auditoría
+                                                v
+                                           fail-closed
+```
 
-## Seguridad y acciones destructivas
+El proveedor `traccar.status.read` es la primera operación real validada de extremo a extremo. Su propósito fue demostrar la arquitectura Web -> RBAC -> UDS -> Worker -> systemd read-only -> auditoría; no representa el límite funcional del producto.
 
-Traccar Manager nunca debe modificar archivos de Traccar de forma destructiva sin una acción explícita, validación previa y mecanismo de recuperación. La detección y el reporte preceden a cualquier acción. La limpieza de archivos es de alto riesgo: su ciclo futuro deberá distinguir **DETECTAR, PREVISUALIZAR, CLASIFICAR, CONFIRMAR, RESPALDAR, ELIMINAR y VERIFICAR**. La primera versión de esa función será solo de detección y reporte; nunca habrá borrado automático de “basura”.
+## Mantenimiento seguro
 
-Nunca almacenar en este repositorio credenciales, claves privadas, tokens, dumps, logs sensibles ni archivos de configuración secretos.
+Las operaciones destructivas deben seguir el ciclo **DETECTAR -> PREVISUALIZAR -> CLASIFICAR -> CONFIRMAR -> RESPALDAR -> EJECUTAR -> VERIFICAR -> AUDITAR**. No se habilitará una consola SQL arbitraria ni borrado genérico del filesystem desde el dashboard.
 
-## Responsable y herramientas
+Los scripts existentes de estado y retención constituyen referencias/operaciones que deberán integrarse progresivamente detrás del Worker y RBAC, no ejecutarse directamente por el navegador.
 
-- **Propietario y responsable:** Jim Ramos.
-- **Asistencia de IA:** apoyo de arquitectura, análisis y desarrollo asistido.
-- **Zapia:** ejecución técnica autorizada en el servidor.
+## Estado Phase 3
 
-## Carpetas
+El baseline validado incluye API y contratos, Manager web, autenticación y sesiones, RBAC, Worker, UDS, ledger de auditoría, proveedor de estado de Traccar, configuración de despliegue, interfaz web, scripts existentes y pruebas automatizadas. La rama de validación es `phase3/validated-manager`.
 
-Consulta [docs/project-structure.md](docs/project-structure.md) para el propósito de cada carpeta y [docs/development-roadmap.md](docs/development-roadmap.md) para las etapas futuras.
+## GitHub y documentación viva
 
-La licencia está pendiente de decisión del propietario; el archivo `LICENSE` es solo un marcador documental y no concede una licencia.
+GitHub es la fuente de referencia del código. El desarrollo debe avanzar mediante ramas, revisión, pruebas y commits controlados antes de integrar a `main`. La documentación del repositorio es documentación viva: debe actualizarse con cada avance relevante para reflejar el estado real y las decisiones vigentes.
+
+## Separación y secretos
+
+Traccar, Traccar Manager, configuración sensible, datos, logs y backups permanecen separados. Nunca versionar credenciales, claves privadas, tokens, dumps, logs sensibles ni configuración secreta.
+
+Consulta `docs/architecture-overview.md`, `docs/development-roadmap.md`, `docs/project-structure.md` y los documentos específicos de seguridad/auditoría para el diseño detallado.
+
+La licencia permanece pendiente de decisión del propietario; `LICENSE` no debe interpretarse como concesión de una licencia hasta que se defina expresamente.
