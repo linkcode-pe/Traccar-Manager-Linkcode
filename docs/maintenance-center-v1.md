@@ -127,3 +127,6 @@ Después de revalidar Preview y persistir la preparación, Worker extrae exactam
 
 ## Incremento 24 - Estado vacío fail-closed en UI
 Cuando Preview devuelve cero candidatos, Manager descarta `lastPreview`, oculta Prepare y muestra explícitamente `Sin candidatos · Prepare y Execute deshabilitados · no hay nada que eliminar`. El flujo termina sin emitir preparación ni solicitud Execute. Esto evita que un preview vacío pueda convertirse accidentalmente en autorización ejecutable.
+
+## Incremento 25 - Revalidación final privilegiada preparada
+Se añadió una revalidación read-only destinada exclusivamente a Retention Boundary antes de cualquier futura mutación: nombre exacto `tracker-server.log.YYYYMMDD`, fecha del nombre realmente expirada según retención, apertura relativa al directorio con `O_NOFOLLOW`, archivo regular y rechazo de symlinks/traversal/log activo. Todavía no está conectada a una ruta destructiva y Boundary permanece `DENY_PRODUCTION`.
