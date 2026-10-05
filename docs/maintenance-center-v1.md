@@ -103,3 +103,6 @@ El Worker ahora incluye `preparation_stored=true` únicamente cuando el `Prepara
 
 ## Incremento 16 - Verificación final no destructiva de readiness
 PREPARE ahora, después de persistir y verificar el binding actor/preparación, ejecuta el mismo gate de Execute en modo `consume=false`, usando el nonce real internamente y revalidando el Preview. Solo si el gate confirma `execution_enabled=false` y `destructive_action_performed=false`, Worker emite `execution_readiness=READY_BLOCKED`. UDS y Manager validan esa attestation exacta antes de propagarla. La web muestra entonces `Listo para ejecutar · bloqueo de seguridad activo`. No se consume el nonce y no existe llamada al helper destructivo.
+
+## Incremento 17 - Contrato de frontera destructiva aislada
+Se formalizó la frontera destructiva como componente sandbox-only: `production_access=false`, raíz productiva `/opt/traccar/logs` hard-denied, allowlist estricta `tracker-server.log.YYYYMMDD` y log activo denegado. La UI publica este estado de arquitectura sin desplegar el helper destructivo ni habilitar Execute. El próximo gate deberá convertir este contrato en un servicio privilegiado separado con identidad/permisos mínimos antes de cualquier acceso productivo.

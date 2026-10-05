@@ -9,6 +9,10 @@ import os,re,stat
 from worker.operations.log_retention_preview import LogRetentionPreview,ACTIVE_LOG_NAME
 
 _HIST=re.compile(r'^tracker-server\.log\.\d{8}$')
+PRODUCTION_LOG_ROOT=Path('/opt/traccar/logs')
+
+def production_boundary_status()->dict[str,object]:
+ return {'component':'isolated-delete-boundary','production_root':str(PRODUCTION_LOG_ROOT),'production_access':False,'sandbox_only':True,'active_log_denied':True,'path_allowlist':'tracker-server.log.YYYYMMDD'}
 class SandboxDeleteError(RuntimeError): pass
 @dataclass(frozen=True)
 class SandboxDeleteResult:

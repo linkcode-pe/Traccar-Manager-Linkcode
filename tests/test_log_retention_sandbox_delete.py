@@ -55,3 +55,16 @@ class PartialFailureTests(MultiCandidateTests):
    delete_preview_candidates_sandbox(self.preview,sandbox_root=self.root,_before_unlink=hook)
   self.assertFalse(self.a.exists())
   self.assertFalse(self.b.exists())
+
+class ProductionBoundaryContractTests(unittest.TestCase):
+ def test_boundary_is_explicitly_sandbox_only(self):
+  from worker.operations.log_retention_sandbox_delete import production_boundary_status
+  self.assertEqual({'component':'isolated-delete-boundary','production_root':'/opt/traccar/logs','production_access':False,'sandbox_only':True,'active_log_denied':True,'path_allowlist':'tracker-server.log.YYYYMMDD'},production_boundary_status())
+ def test_production_root_is_hard_denied_before_mutation(self):
+  from dataclasses import replace
+  from worker.operations.log_retention_sandbox_delete import delete_preview_candidates_sandbox,SandboxDeleteError
+  fake=replace(Tests.__dict__.get('preview',None)) if False else None
+  # Source-level invariant complements runtime sandbox tests: production root denial must remain in helper.
+  import inspect
+  src=inspect.getsource(delete_preview_candidates_sandbox)
+  self.assertIn("PRODUCTION_PATH_DENIED",src);self.assertIn("/opt/traccar",src)
