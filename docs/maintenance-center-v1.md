@@ -145,3 +145,6 @@ Cada ejecución destructiva de sandbox genera ahora evidencia JSONL durable ante
 
 ## Incremento 29 - Fallo parcial fail-stop y evidencia exacta
 El ejecutor sandbox ahora registra resultado por archivo. Ante el primer `unlink` fallido se detiene: separa `deleted_names`, `failed_names` y `not_attempted_names`, devuelve `SANDBOX_PARTIAL_FAILURE` y persiste exactamente el mismo resultado en la auditoría durable. Nunca declara éxito total después de un fallo. Producción permanece `DENY_PRODUCTION`.
+
+## Incremento 30 - Protección TOCTOU por identidad de archivo
+El ejecutor sandbox abre cada candidato con `O_NOFOLLOW`, captura `st_dev/st_ino`, vuelve a consultar el nombre inmediatamente antes del unlink y exige que siga apuntando al mismo archivo regular. Si el nombre fue sustituido, devuelve `IDENTITY_CHANGED`, entra en fail-stop, no elimina el reemplazo y audita el incidente. Producción continúa `DENY_PRODUCTION`.
