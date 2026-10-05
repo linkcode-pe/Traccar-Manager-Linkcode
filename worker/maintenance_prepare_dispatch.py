@@ -8,6 +8,7 @@ from worker.audit.ledger import AuditLedger,LedgerEvent,canonical_json
 from worker.operations.log_retention_preview import preview_log_retention
 from worker.operations.log_retention_prepare import prepare_log_retention,LogRetentionPrepareError,_hash,_plan
 from worker.operations.log_retention_preparation_store import PreparationStore,PreparationStoreError
+from worker.operations.log_retention_execute import validate_execution_gate,LogRetentionExecuteError
 
 OPERATION="maintenance.logs.prepare"; ROLE=OPERATION
 TARGET={"type":"traccar-log-directory","id":"/opt/traccar/logs"}
@@ -55,7 +56,13 @@ def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,.
  _append(ledger,_event(**common,event_type="EXECUTION_COMPLETED",phase="AUDIT_RESULT",actor=WORKER_ACTOR,status="COMPLETED",authorization=granted,result_code="OK",result=result),result=True)
  _append(ledger,_event(**common,event_type="AUDIT_FINALIZED",phase="AUDIT_FINALIZATION",actor=WORKER_ACTOR,status="FINALIZED",authorization=granted,result_code="OK",result=result))
  if not ledger.verify().valid:raise MaintenancePrepareError("AUDIT_UNAVAILABLE")
+ readiness="NOT_VERIFIED"
  if preparation_store is not None:
-  try: preparation_store.issue(prep,subject_id=subject_id)
-  except PreparationStoreError as exc: raise MaintenancePrepareError(str(exc)) from None
- return {"preparation":plan,"preview_id":preview_id,"audit_preview_id":audit_preview_id,"destructive_action_performed":False,"preparation_stored":preparation_store is not None}
+  try:
+   preparation_store.issue(prep,subject_id=subject_id)
+   preparation_store.verify(prep,subject_id=subject_id)
+   gate=validate_execution_gate(prep,confirmation="CONFIRMAR LIMPIEZA",nonce=prep.one_time_nonce,consumption_store=None,consume=False,preview_provider=preview_log_retention)
+   if gate.execution_enabled is not False or gate.destructive_action_performed is not False: raise MaintenancePrepareError("UNSAFE_EXECUTION_GATE")
+   readiness="READY_BLOCKED"
+  except (PreparationStoreError,LogRetentionExecuteError) as exc: raise MaintenancePrepareError(str(exc)) from None
+ return {"preparation":plan,"preview_id":preview_id,"audit_preview_id":audit_preview_id,"destructive_action_performed":False,"preparation_stored":preparation_store is not None,"execution_readiness":readiness}

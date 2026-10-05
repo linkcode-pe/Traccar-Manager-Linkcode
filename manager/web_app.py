@@ -92,7 +92,7 @@ PAGE = """<!doctype html>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
         <button id="prepare-logs-button" class="secondary" type="button" hidden>Preparar limpieza</button>
-        <p id="maintenance-preparation" class="muted" hidden></p>
+        <p id="maintenance-preparation" class="muted" hidden></p><p id="maintenance-readiness" class="status" hidden></p>
         <div id="maintenance-security" class="security-checks" hidden><strong>Controles verificados antes de ejecutar</strong><span>Preparación ligada a la sesión y registrada durablemente</span><span>Auditoría durable antes del consumo</span><span>Autorización one-shot y anti-replay</span><span>Revalidación del plan antes de cualquier mutación</span></div>
         <p id="maintenance-state" class="status">Sin análisis</p>
         <p id="maintenance-detail" class="muted">No se ha ejecutado ninguna vista previa.</p>
@@ -136,7 +136,7 @@ APP_JS = r"""(() => {
   const traccarDetail = byId("traccar-detail");
   const retentionDays = byId("retention-days");
   const previewLogsButton = byId("preview-logs-button");
-  const prepareLogsButton=byId("prepare-logs-button"); const maintenancePreparation=byId("maintenance-preparation"); const maintenanceSecurity=byId("maintenance-security"); let lastPreview=null;
+  const prepareLogsButton=byId("prepare-logs-button"); const maintenancePreparation=byId("maintenance-preparation"); const maintenanceReadiness=byId("maintenance-readiness"); const maintenanceSecurity=byId("maintenance-security"); let lastPreview=null;
   const maintenanceState = byId("maintenance-state");
   const maintenanceDetail = byId("maintenance-detail");
   const maintenanceCandidates = byId("maintenance-candidates");
@@ -227,7 +227,7 @@ APP_JS = r"""(() => {
       maintenanceHistoryBytes.textContent=formatBytes(p.historical_bytes);
       maintenanceCandidateCount.textContent=String(p.candidate_count);
       maintenanceCandidateBytes.textContent=formatBytes(p.candidate_bytes);
-      maintenanceSummary.hidden=false; lastPreview={previewId:data.preview_id,days:days}; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true; maintenanceSecurity.hidden=true;
+      maintenanceSummary.hidden=false; lastPreview={previewId:data.preview_id,days:days}; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true; maintenanceReadiness.hidden=true; maintenanceSecurity.hidden=true;
       maintenanceRange.textContent=p.candidate_count ? "Rango candidato: "+p.oldest_candidate_utc+" → "+p.newest_candidate_utc : "No existen archivos fuera de la retención seleccionada.";
       maintenanceRange.hidden=false;
       p.candidates.forEach((item)=>{ const li=document.createElement("li"); li.textContent=item.name+" — "+formatBytes(item.size_bytes)+" — "+item.mtime_utc; maintenanceCandidates.appendChild(li); });
@@ -236,7 +236,7 @@ APP_JS = r"""(() => {
   }
 
 
-  async function prepareLogs(){ if(!lastPreview)return; prepareLogsButton.disabled=true; maintenanceError.hidden=true; try { const requestId=newRequestId(); const response=await fetchApi("maintenance/logs/prepare",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request_id:requestId,preview_id:lastPreview.previewId,retention_days:lastPreview.days})}); if(response.status===401){showLogin("La sesión expiró. Inicia sesión de nuevo.");return;} if(response.status===403){maintenancePreparation.textContent="Sin permiso maintenance.logs.prepare.";maintenancePreparation.hidden=false;return;} if(!response.ok)throw new Error(); const data=await response.json(),q=data.preparation; if(!q||q.destructive_action_performed!==false||q.revalidated!==true||data.preparation_stored!==true)throw new Error(); maintenancePreparation.textContent="Preparación auditada y registro durable confirmados por Worker. Expira: "+q.expires_at_utc+" · ejecución real todavía bloqueada · no se eliminó ningún archivo.";maintenancePreparation.hidden=false; maintenanceSecurity.hidden=false; prepareLogsButton.hidden=true; }catch(e){maintenanceError.textContent="No se pudo preparar la limpieza. Vuelve a analizar los logs.";maintenanceError.hidden=false;}finally{prepareLogsButton.disabled=false;} }
+  async function prepareLogs(){ if(!lastPreview)return; prepareLogsButton.disabled=true; maintenanceError.hidden=true; try { const requestId=newRequestId(); const response=await fetchApi("maintenance/logs/prepare",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request_id:requestId,preview_id:lastPreview.previewId,retention_days:lastPreview.days})}); if(response.status===401){showLogin("La sesión expiró. Inicia sesión de nuevo.");return;} if(response.status===403){maintenancePreparation.textContent="Sin permiso maintenance.logs.prepare.";maintenancePreparation.hidden=false;return;} if(!response.ok)throw new Error(); const data=await response.json(),q=data.preparation; if(!q||q.destructive_action_performed!==false||q.revalidated!==true||data.preparation_stored!==true||data.execution_readiness!=="READY_BLOCKED")throw new Error(); maintenancePreparation.textContent="Preparación auditada y registro durable confirmados por Worker. Expira: "+q.expires_at_utc+" · ejecución real todavía bloqueada · no se eliminó ningún archivo.";maintenancePreparation.hidden=false; maintenanceReadiness.textContent="Listo para ejecutar · bloqueo de seguridad activo"; maintenanceReadiness.hidden=false; maintenanceSecurity.hidden=false; prepareLogsButton.hidden=true; }catch(e){maintenanceError.textContent="No se pudo preparar la limpieza. Vuelve a analizar los logs.";maintenanceError.hidden=false;}finally{prepareLogsButton.disabled=false;} }
 
   async function loadSnapshot() {
     showAuthenticatedLoading();

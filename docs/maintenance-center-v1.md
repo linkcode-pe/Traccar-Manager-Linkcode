@@ -100,3 +100,6 @@ El flujo PREPARE del Worker ahora registra cada preparación exitosa en un `Prep
 
 ## Incremento 16 - Attestation durable de PREPARE hasta la Web
 El Worker ahora incluye `preparation_stored=true` únicamente cuando el `PreparationStore` confirmó persistencia. El cliente UDS exige ese campo y falla cerrado si falta o es falso; Manager lo conserva y la UI solo muestra la confirmación durable si recibió esa attestation. Esto elimina una afirmación puramente visual: la Web refleja una propiedad confirmada extremo a extremo por Worker. Execute permanece bloqueado y no se consume ninguna preparación desde la UI.
+
+## Incremento 16 - Verificación final no destructiva de readiness
+PREPARE ahora, después de persistir y verificar el binding actor/preparación, ejecuta el mismo gate de Execute en modo `consume=false`, usando el nonce real internamente y revalidando el Preview. Solo si el gate confirma `execution_enabled=false` y `destructive_action_performed=false`, Worker emite `execution_readiness=READY_BLOCKED`. UDS y Manager validan esa attestation exacta antes de propagarla. La web muestra entonces `Listo para ejecutar · bloqueo de seguridad activo`. No se consume el nonce y no existe llamada al helper destructivo.
