@@ -1,6 +1,6 @@
 """Privileged boundary protocol. Production mutation remains hard denied."""
 from __future__ import annotations
-import json,os,socket
+import json,os,socket,struct,pwd
 from worker.operations.log_retention_boundary_contract import BoundaryContract,validate_request
 from worker.operations.log_retention_boundary_revalidate import revalidate
 from worker.operations.log_retention_boundary_credential import load_hmac_key
@@ -10,12 +10,19 @@ def _status():
  d=BoundaryContract().public_status();d.update({'status':'healthy','destructive_action_performed':False});return d
 def response()->bytes:
  return (json.dumps(_status(),sort_keys=True,separators=(',',':'))+'\n').encode()
-def handle(raw:bytes)->bytes:
+def _authorized_peer(c)->bool:
+ try:
+  _pid,uid,_gid=struct.unpack('3i',c.getsockopt(socket.SOL_SOCKET,socket.SO_PEERCRED,struct.calcsize('3i')))
+  return uid==pwd.getpwnam('traccar-manager-worker').pw_uid
+ except (OSError,KeyError,struct.error):return False
+def handle(raw:bytes,*,peer_authorized:bool=False)->bytes:
  try:
   text=raw.decode().strip()
   if text=='health': out=_status()
   else:
    req=json.loads(text)
+   if req.get('action') in ('ISSUE_AUTH','VERIFY') and not peer_authorized:
+    out={'status':'DENIED_BY_PEER_IDENTITY','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':False};return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
    if not isinstance(req,dict) or not isinstance(req.get('names'),list) or not validate_request(req.get('operation'),req['names']): raise ValueError()
    action=req.get('action','VERIFY')
    if action=='ISSUE_AUTH':
@@ -36,10 +43,10 @@ def handle(raw:bytes)->bytes:
 def main():
  try:os.unlink(SOCKET_PATH)
  except FileNotFoundError:pass
- s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.bind(SOCKET_PATH);os.chmod(SOCKET_PATH,0o666);s.listen(8)
+ s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.bind(SOCKET_PATH);os.chown(SOCKET_PATH,-1,pwd.getpwnam('traccar-manager-worker').pw_gid);os.chmod(SOCKET_PATH,0o660);s.listen(8)
  while True:
   c,_=s.accept()
   with c:
-   try:c.sendall(handle(c.recv(4096)))
+   try:c.sendall(handle(c.recv(4096),peer_authorized=_authorized_peer(c)))
    except OSError:pass
 if __name__=='__main__':main()
