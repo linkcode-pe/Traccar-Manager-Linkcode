@@ -115,3 +115,6 @@ Se implementó el servidor Unix local de la frontera con identidad separada y un
 
 ## Incremento 20 - Health real Worker -> Retention Boundary
 Se añadió un cliente estricto del Worker para el socket Unix de Retention Boundary. El cliente acepta únicamente el contrato completo `healthy + DENY_PRODUCTION + production_access=false + destructive_action_performed=false`; cualquier respuesta parcial o alterada falla cerrada. El socket expone exclusivamente health y es local AF_UNIX; no existe operación destructiva servida. Se validó la consulta ejecutándola con la identidad real `traccar-manager-worker`.
+
+## Incremento 21 - Health dinámico Boundary → Worker → Manager → Web
+Manager consulta el estado de la frontera mediante el UDS existente del Worker. Worker consulta a su vez el socket Unix aislado de Retention Boundary y valida el contrato exacto `DENY_PRODUCTION`. La web obtiene el resultado mediante un endpoint autenticado; cualquier fallo muestra `Frontera no disponible · operación bloqueada`. No se habilita Execute ni acceso destructivo.

@@ -32,6 +32,7 @@ from worker.maintenance_preview_dispatch import (
     TARGET as MAINTENANCE_TARGET, execute as execute_maintenance_preview,
 )
 from worker.operations.log_retention_preparation_store import PreparationStore
+from worker.retention_boundary_client import query_health as query_retention_boundary_health, BoundaryUnavailable
 from worker.maintenance_prepare_dispatch import (
     MaintenancePrepareError, OPERATION as MAINTENANCE_PREPARE_OPERATION, ROLE as MAINTENANCE_PREPARE_ROLE,
     TARGET as MAINTENANCE_PREPARE_TARGET, execute as execute_maintenance_prepare,
@@ -51,6 +52,8 @@ PROTOCOL_VERSION = 1
 ENDPOINT = "/api/dashboard/snapshot"
 MAINTENANCE_ENDPOINT = "/api/maintenance/logs/preview"
 MAINTENANCE_PREPARE_ENDPOINT = "/api/maintenance/logs/prepare"
+BOUNDARY_HEALTH_OPERATION = "maintenance.boundary.health"
+BOUNDARY_HEALTH_ROLE = "maintenance.logs.preview"
 MAX_MESSAGE_BYTES = 8192
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SUBJECT_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -113,6 +116,8 @@ def _read_message(connection: socket.socket) -> dict[str, object]:
                 or not 30 <= payload["retention_days"] <= 3650
                 or roles != [MAINTENANCE_ROLE]):
             raise RequestError()
+    elif operation == BOUNDARY_HEALTH_OPERATION:
+        if roles != [BOUNDARY_HEALTH_ROLE] or payload != {}: raise RequestError()
     elif operation == MAINTENANCE_PREPARE_OPERATION:
         if (not isinstance(payload,dict) or set(payload)!={"retention_days","preview_id"}
                 or type(payload.get("retention_days")) is not int or not 30<=payload["retention_days"]<=3650
@@ -317,6 +322,8 @@ def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: Au
         operation = message["operation"]
         if operation == OPERATION:
             result = _perform_status(message, ledger)
+        elif operation == BOUNDARY_HEALTH_OPERATION:
+            health=query_retention_boundary_health(); result={"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":BOUNDARY_HEALTH_OPERATION,"request_id":request_id,"outcome":"SUCCEEDED","boundary":health}
         elif operation == MAINTENANCE_OPERATION and maintenance_ledger is not None:
             result = _perform_maintenance(message, maintenance_ledger)
         elif operation == MAINTENANCE_PREPARE_OPERATION and maintenance_prepare_ledger is not None:

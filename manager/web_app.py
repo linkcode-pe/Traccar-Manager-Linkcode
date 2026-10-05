@@ -87,7 +87,7 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Ejecutar bloqueado</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span>Servicio de frontera activo · health verificado por Worker · DynamicUser · DENY_PRODUCTION</span><span>Sin red · sin shell · Allowlist: tracker-server.log.YYYYMMDD · log activo protegido</span></div>
+        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Ejecutar bloqueado</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · Allowlist: tracker-server.log.YYYYMMDD · log activo protegido</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
@@ -147,6 +147,7 @@ APP_JS = r"""(() => {
   const maintenanceCandidateBytes = byId("maintenance-candidate-bytes");
   const maintenanceRange = byId("maintenance-range");
   const maintenanceError = byId("maintenance-error");
+  const boundaryHealth=byId("boundary-health");
 
   function showLogin(message) {
     boot.hidden = true;
@@ -205,6 +206,8 @@ APP_JS = r"""(() => {
     while (n >= 1024 && i < units.length-1) { n/=1024; i++; }
     return n.toFixed(n >= 10 ? 1 : 2) + " " + units[i];
   }
+
+  async function loadBoundaryHealth(){ try { const requestId=newRequestId(); const r=await fetchApi("maintenance/boundary/health?request_id="+encodeURIComponent(requestId)); if(!r.ok)throw new Error(); const d=await r.json(),b=d.boundary; if(!b||b.status!=="healthy"||b.mode!=="DENY_PRODUCTION"||b.production_access!==false||b.destructive_action_performed!==false)throw new Error(); boundaryHealth.textContent="Servicio de frontera activo · health dinámico verificado por Worker · DynamicUser · DENY_PRODUCTION"; }catch(_e){ boundaryHealth.textContent="Frontera no disponible · operación bloqueada"; }}
 
   async function previewLogs() {
     maintenanceError.hidden=true; maintenanceCandidates.replaceChildren(); maintenanceSummary.hidden=true; maintenanceRange.hidden=true;
@@ -291,6 +294,7 @@ APP_JS = r"""(() => {
         }
       }
       dashboardPanel.hidden = false;
+      loadBoundaryHealth();
       boot.hidden = true;
     } catch (_error) {
       traccarState.textContent = "Estado no disponible";
@@ -617,6 +621,18 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             return
         self._json(HTTPStatus.OK, snapshot_to_dict(snapshot))
 
+    def _handle_boundary_health(self) -> None:
+        token=self._cookie_token(); principal=self.server.session_store.get(token) if token is not None else None
+        if principal is None: self._json(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"}); return
+        if "maintenance.logs.preview" not in principal.roles: self._json(HTTPStatus.FORBIDDEN,{"error":"forbidden"}); return
+        try:
+            query=parse_qsl(urlsplit(self.path).query,keep_blank_values=True,strict_parsing=True,max_num_fields=1); values={k:v for k,v in query}
+            if len(query)!=1 or set(values)!={"request_id"} or not values["request_id"]: raise ValueError()
+            result=self.server.maintenance_api.boundary_health(values["request_id"],principal)
+        except MaintenanceAPIError: self._json(HTTPStatus.SERVICE_UNAVAILABLE,{"error":"boundary_unavailable"}); return
+        except Exception: self._json(HTTPStatus.BAD_REQUEST,{"error":"invalid_request"}); return
+        self._json(HTTPStatus.OK,result)
+
     def _handle_maintenance_logs_preview(self) -> None:
         token=self._cookie_token(); principal=self.server.session_store.get(token) if token is not None else None
         if principal is None:
@@ -665,6 +681,8 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_me()
         elif path == "/api/dashboard/snapshot":
             self._handle_dashboard_snapshot()
+        elif path == "/api/maintenance/boundary/health":
+            self._handle_boundary_health()
         elif path == "/api/maintenance/logs/preview":
             self._handle_maintenance_logs_preview()
         elif path in ("/api/auth/login", "/api/auth/logout"):

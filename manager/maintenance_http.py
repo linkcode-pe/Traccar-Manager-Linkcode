@@ -54,3 +54,14 @@ def prepare_logs(self, request_id: str, principal: SessionPrincipal, preview_id:
     if ok is not True: raise MaintenanceAPIError("API_AUDIT_UNAVAILABLE")
     return {"schema_version":1,"request_id":request_id,"operation":PREPARE_OPERATION,"preview_id":preview_id,"preparation":response["preparation"],"preparation_stored":response.get("preparation_stored") is True}
 ManagerMaintenanceAPI.prepare_logs=prepare_logs
+
+from manager.worker_uds import query_retention_boundary_health
+def boundary_health(self,request_id:str,principal:SessionPrincipal)->dict[str,object]:
+    if not isinstance(principal,SessionPrincipal):raise MaintenanceAPIError('API_UNAUTHORIZED')
+    if ROLE not in principal.roles:raise MaintenanceAPIError('API_FORBIDDEN')
+    try:b=query_retention_boundary_health(request_id,principal.subject_id,principal.roles)
+    except WorkerTransportError as exc:
+        if str(exc)=='INVALID_REQUEST':raise MaintenanceAPIError('API_INVALID_REQUEST') from None
+        raise MaintenanceAPIError('API_PROVIDER_UNAVAILABLE') from None
+    return {'schema_version':1,'request_id':request_id,'boundary':b}
+ManagerMaintenanceAPI.boundary_health=boundary_health

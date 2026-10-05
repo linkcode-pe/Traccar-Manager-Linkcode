@@ -283,3 +283,29 @@ def query_maintenance_logs_prepare(request_id: str, subject_id: str, roles: tupl
     if not isinstance(preparation,dict) or set(preparation)!=required or preparation.get("preview_id")!=preview_id or preparation.get("retention_days")!=retention_days or preparation.get("revalidated") is not True or preparation.get("destructive_action_performed") is not False: raise WorkerTransportError("WORKER_UNAVAILABLE")
     if not isinstance(receipt,dict) or receipt.get("operation")!=MAINTENANCE_PREPARE_OPERATION or receipt.get("request_id")!=request_id or receipt.get("subject_id")!=subject_id or receipt.get("durable") is not True: raise WorkerTransportError("WORKER_UNAVAILABLE")
     return {"preparation":preparation,"preview_id":preview_id,"preparation_stored":True,"execution_readiness":"READY_BLOCKED","audit_receipt":receipt}
+
+BOUNDARY_HEALTH_OPERATION="maintenance.boundary.health"
+BOUNDARY_HEALTH_ROLE=MAINTENANCE_ROLE
+
+def query_retention_boundary_health(request_id:str,subject_id:str,roles:tuple[str,...])->dict[str,object]:
+    if not isinstance(request_id,str) or not _REQUEST_ID_RE.fullmatch(request_id) or not isinstance(subject_id,str) or not _SUBJECT_RE.fullmatch(subject_id) or not isinstance(roles,tuple) or BOUNDARY_HEALTH_ROLE not in roles: raise WorkerTransportError("INVALID_REQUEST")
+    if os.geteuid()!=WEB_UID: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    worker_uid,worker_gid,_=_verify_socket_path(); msg={"protocol_version":1,"operation":BOUNDARY_HEALTH_OPERATION,"request_id":request_id,"subject_id":subject_id,"roles":[BOUNDARY_HEALTH_ROLE],"payload":{}}
+    c=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);c.settimeout(ROUNDTRIP_TIMEOUT_SECONDS)
+    try:
+        c.connect(SOCKET_PATH);_pid,uid,gid=_peer_credentials(c)
+        if uid!=worker_uid or gid!=worker_gid: raise WorkerTransportError("WORKER_UNAVAILABLE")
+        c.sendall(json.dumps(msg,sort_keys=True,separators=(",",":")).encode()+b"\n");c.shutdown(socket.SHUT_WR);raw=b""
+        while True:
+            x=c.recv(2048)
+            if not x:break
+            raw+=x
+            if len(raw)>MAX_MESSAGE_BYTES:raise WorkerTransportError("WORKER_UNAVAILABLE")
+    except WorkerTransportError:raise
+    except OSError:raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    finally:c.close()
+    try:r=json.loads(raw[:-1].decode()) if raw.endswith(b"\n") and raw.count(b"\n")==1 else None
+    except Exception:r=None
+    expected={'active_log_denied':True,'allowed_name_pattern':'tracker-server.log.YYYYMMDD','allowed_operation':'DELETE_EXPIRED_HISTORICAL_LOGS','component':'traccar-manager-retention-boundary','destructive_action_performed':False,'mode':'DENY_PRODUCTION','network_access':False,'production_access':False,'separate_identity_required':True,'shell_access':False,'status':'healthy'}
+    if not isinstance(r,dict) or set(r)!={'schema_version','protocol_version','operation','request_id','outcome','boundary'} or r.get('operation')!=BOUNDARY_HEALTH_OPERATION or r.get('request_id')!=request_id or r.get('outcome')!='SUCCEEDED' or r.get('boundary')!=expected:raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return dict(r['boundary'])
