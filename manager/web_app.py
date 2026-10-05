@@ -230,8 +230,9 @@ APP_JS = r"""(() => {
       maintenanceHistoryBytes.textContent=formatBytes(p.historical_bytes);
       maintenanceCandidateCount.textContent=String(p.candidate_count);
       maintenanceCandidateBytes.textContent=formatBytes(p.candidate_bytes);
-      maintenanceSummary.hidden=false; lastPreview={previewId:data.preview_id,days:days}; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true; maintenanceReadiness.hidden=true; maintenanceSecurity.hidden=true;
-      maintenanceRange.textContent=p.candidate_count ? "Rango candidato: "+p.oldest_candidate_utc+" → "+p.newest_candidate_utc : "No existen archivos fuera de la retención seleccionada.";
+      maintenanceSummary.hidden=false; lastPreview=p.candidate_count>0?{previewId:data.preview_id,days:days}:null; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true; maintenanceSecurity.hidden=true;
+      if(p.candidate_count===0){ maintenanceReadiness.textContent="Sin candidatos · Prepare y Execute deshabilitados · no hay nada que eliminar"; maintenanceReadiness.hidden=false; } else { maintenanceReadiness.hidden=true; }
+      maintenanceRange.textContent=p.candidate_count ? "Rango candidato: "+p.oldest_candidate_utc+" → "+p.newest_candidate_utc : "No existen archivos fuera de la retención seleccionada. El flujo termina de forma segura sin Prepare ni Execute.";
       maintenanceRange.hidden=false;
       p.candidates.forEach((item)=>{ const li=document.createElement("li"); li.textContent=item.name+" — "+formatBytes(item.size_bytes)+" — "+item.mtime_utc; maintenanceCandidates.appendChild(li); });
     } catch (_error) { maintenanceState.textContent="Vista previa no disponible"; maintenanceDetail.textContent="No se realizó ninguna acción destructiva."; maintenanceError.textContent="No se pudo analizar los logs."; maintenanceError.hidden=false; }

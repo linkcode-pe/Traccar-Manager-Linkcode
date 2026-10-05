@@ -124,3 +124,6 @@ Retention Boundary acepta ahora una solicitud estructurada exclusivamente para `
 
 ## Incremento 23 - Plan real de Prepare alcanza Boundary sin mutación
 Después de revalidar Preview y persistir la preparación, Worker extrae exactamente los nombres candidatos del Preview revalidado y los envía a Retention Boundary. Boundary valida la allowlist y responde `DENIED_BY_PRODUCTION_GATE`. El resultado vuelve por Worker/UDS/Manager y la UI muestra el número real de candidatos cuyo Execute fue rechazado. `production_access=false` y no existe borrado.
+
+## Incremento 24 - Estado vacío fail-closed en UI
+Cuando Preview devuelve cero candidatos, Manager descarta `lastPreview`, oculta Prepare y muestra explícitamente `Sin candidatos · Prepare y Execute deshabilitados · no hay nada que eliminar`. El flujo termina sin emitir preparación ni solicitud Execute. Esto evita que un preview vacío pueda convertirse accidentalmente en autorización ejecutable.
