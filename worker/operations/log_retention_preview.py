@@ -75,7 +75,7 @@ def preview_log_retention(
     current = now or datetime.now(timezone.utc)
     if current.tzinfo is None:
         raise PreviewError("now must be timezone-aware")
-    cutoff = current.astimezone(timezone.utc) - timedelta(days=retention_days)
+    cutoff = (current.astimezone(timezone.utc) - timedelta(days=retention_days)).replace(hour=0,minute=0,second=0,microsecond=0)
 
     candidates: list[LogCandidate] = []
     historical_count = 0

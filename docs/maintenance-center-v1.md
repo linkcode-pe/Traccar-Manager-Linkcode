@@ -182,3 +182,6 @@ Se instaló `traccar-manager-attestation-sync.path/service`: observa el spool Wo
 
 ## Incremento 41 - PREPARE conectado al protocolo HMAC real de Boundary
 El flujo normal de `maintenance.logs.prepare` usa ahora el binding devuelto por `PreparationStore`, publica la atestación y solicita a Boundary `ISSUE_AUTH`; después presenta ese token mediante `VERIFY`. El cliente tolera únicamente la breve carrera de sincronización root y exige como resultado final exacto `DENIED_BY_PRODUCTION_GATE`. La vista de atestaciones de Boundary queda fijada al path root-owned `/var/lib/traccar-manager-retention/preparations.jsonl`.
+
+## Incremento 42 - Identidad PREVIEW estable durante el día
+La prueba E2E productiva detectó que `cutoff_utc` variaba cada segundo, haciendo que un PREPARE inmediato pudiera fallar `PREVIEW_STALE`. Se corrige de forma fail-closed: el cutoff de retención se normaliza a 00:00:00 UTC del día límite. La lista, tamaños y mtimes de candidatos siguen formando parte del hash; cualquier cambio real en candidatos continúa invalidando PREPARE. Suite de mantenimiento: 28/28 OK. Producción permanece DENY_PRODUCTION.
