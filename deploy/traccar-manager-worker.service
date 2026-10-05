@@ -1,0 +1,32 @@
+[Unit]
+Description=Traccar Manager fixed Traccar status Worker
+After=local-fs.target systemd-tmpfiles-setup.service
+
+[Service]
+Type=simple
+User=traccar-manager-worker
+Group=traccar-manager-worker
+SupplementaryGroups=traccar-manager-ipc
+WorkingDirectory=/opt/traccar-manager
+ExecStart=/usr/bin/python3 -B /opt/traccar-manager/worker/runtime_server.py
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Permit writes only to the tmpfiles-managed IPC runtime directory.
+ReadWritePaths=/run/traccar-manager
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+UMask=0027
+StateDirectory=traccar-manager-worker
+StateDirectoryMode=0750
+# The IPC-owned runtime directory is created declaratively by systemd-tmpfiles.
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=multi-user.target

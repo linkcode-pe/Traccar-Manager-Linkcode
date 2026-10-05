@@ -1,0 +1,200 @@
+"""Strict local UDS client for the fixed Traccar status Worker operation."""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import grp
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import socket
+import stat
+import struct
+from uuid import UUID
+
+SOCKET_PATH = "/run/traccar-manager/traccar-status.sock"
+WEB_UID = 996
+WORKER_NAME = "traccar-manager-worker"
+WORKER_GROUP = "traccar-manager-worker"
+IPC_GROUP = "traccar-manager-ipc"
+OPERATION = "traccar.status.read"
+ROLE = "traccar.status.read"
+PROTOCOL_VERSION = 1
+ENDPOINT = "/api/dashboard/snapshot"
+LEDGER_OPERATION = "traccar.status"
+MAX_MESSAGE_BYTES = 8192
+ROUNDTRIP_TIMEOUT_SECONDS = 8.0
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_SUBJECT_RE = re.compile(r"^[0-9a-f]{32}$")
+_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+_PROPERTIES = ("LoadState", "ActiveState", "SubState", "UnitFileState", "Result")
+_STATE_RE = re.compile(r"^[A-Za-z0-9_.+-]{1,64}$")
+_AUDIT_RECEIPT_KEYS = frozenset({
+    "schema_version", "protocol_version", "request_id", "operation",
+    "ledger_operation", "endpoint", "subject_id", "role", "phase",
+    "event_id", "ledger_sequence", "previous_event_hash", "event_hash", "durable",
+})
+
+
+class WorkerTransportError(RuntimeError):
+    """Sanitized local transport failure."""
+
+
+def _pairs_no_duplicates(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate key")
+        result[key] = value
+    return result
+
+
+def _peer_credentials(sock: socket.socket) -> tuple[int, int, int]:
+    size = struct.calcsize("3i")
+    try:
+        raw = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, size)
+        pid, uid, gid = struct.unpack("3i", raw)
+    except (AttributeError, OSError, struct.error):
+        raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    if pid <= 0 or uid < 0 or gid < 0:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return pid, uid, gid
+
+
+def _verify_socket_path() -> tuple[int, int, int]:
+    try:
+        directory = os.lstat(os.path.dirname(SOCKET_PATH))
+        info = os.lstat(SOCKET_PATH)
+        worker = pwd.getpwnam(WORKER_NAME)
+        ipc_gid = grp.getgrnam(IPC_GROUP).gr_gid
+    except (OSError, KeyError):
+        raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    worker_uid, worker_gid = worker.pw_uid, worker.pw_gid
+    if (not stat.S_ISDIR(directory.st_mode) or stat.S_ISLNK(directory.st_mode)
+            or directory.st_uid != worker_uid or directory.st_gid != ipc_gid
+            or stat.S_IMODE(directory.st_mode) != 0o750):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if (not stat.S_ISSOCK(info.st_mode) or stat.S_ISLNK(info.st_mode)
+            or info.st_uid != worker_uid or info.st_gid != ipc_gid
+            or stat.S_IMODE(info.st_mode) != 0o660):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return worker_uid, worker_gid, ipc_gid
+
+
+def _validate_receipt(receipt, *, request_id: str, subject_id: str) -> bool:
+    if not isinstance(receipt, dict) or set(receipt) != _AUDIT_RECEIPT_KEYS:
+        return False
+    if (type(receipt.get("schema_version")) is not int or receipt["schema_version"] != 1
+            or type(receipt.get("protocol_version")) is not int or receipt["protocol_version"] != PROTOCOL_VERSION
+            or receipt.get("request_id") != request_id
+            or receipt.get("operation") != OPERATION
+            or receipt.get("ledger_operation") != LEDGER_OPERATION
+            or receipt.get("endpoint") != ENDPOINT
+            or receipt.get("subject_id") != subject_id
+            or receipt.get("role") != ROLE
+            or receipt.get("phase") != "AUDIT_FINALIZATION"
+            or receipt.get("durable") is not True
+            or type(receipt.get("ledger_sequence")) is not int
+            or receipt["ledger_sequence"] < 1):
+        return False
+    event_id = receipt.get("event_id")
+    if not isinstance(event_id, str):
+        return False
+    try:
+        UUID(event_id)
+    except (ValueError, TypeError, AttributeError):
+        return False
+    if not isinstance(receipt.get("event_hash"), str) or not _HASH_RE.fullmatch(receipt["event_hash"]):
+        return False
+    previous = receipt.get("previous_event_hash")
+    return previous is None or (isinstance(previous, str) and bool(_HASH_RE.fullmatch(previous)))
+
+
+def query_status(request_id: str, subject_id: str, roles: tuple[str, ...]) -> dict[str, object]:
+    """Send one correlated fixed request; never retries and never uses TCP."""
+    if (not isinstance(request_id, str) or not _REQUEST_ID_RE.fullmatch(request_id)
+            or not isinstance(subject_id, str) or not _SUBJECT_RE.fullmatch(subject_id)
+            or not isinstance(roles, tuple) or ROLE not in roles):
+        raise WorkerTransportError("INVALID_REQUEST")
+    if os.geteuid() != WEB_UID:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    worker_uid, worker_gid, _ipc_gid = _verify_socket_path()
+    message = {
+        "protocol_version": PROTOCOL_VERSION,
+        "operation": OPERATION,
+        "request_id": request_id,
+        "subject_id": subject_id,
+        "roles": [ROLE],
+        "payload": {},
+    }
+    encoded = json.dumps(message, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8") + b"\n"
+    if len(encoded) > MAX_MESSAGE_BYTES:
+        raise WorkerTransportError("INVALID_REQUEST")
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.settimeout(ROUNDTRIP_TIMEOUT_SECONDS)
+    try:
+        client.connect(SOCKET_PATH)
+        _pid, peer_uid, peer_gid = _peer_credentials(client)
+        if peer_uid != worker_uid or peer_gid != worker_gid:
+            raise WorkerTransportError("WORKER_UNAVAILABLE")
+        client.sendall(encoded)
+        client.shutdown(socket.SHUT_WR)
+        chunks = []
+        total = 0
+        while True:
+            chunk = client.recv(2048)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_MESSAGE_BYTES:
+                raise WorkerTransportError("WORKER_UNAVAILABLE")
+            chunks.append(chunk)
+    except WorkerTransportError:
+        raise
+    except (OSError, TimeoutError):
+        raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    finally:
+        client.close()
+    raw = b"".join(chunks)
+    if not raw.endswith(b"\n") or raw.count(b"\n") != 1 or b"\r" in raw:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    try:
+        response = json.loads(raw[:-1].decode("utf-8"), object_pairs_hook=_pairs_no_duplicates,
+                              parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("constant")))
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    if not isinstance(response, dict):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if (type(response.get("schema_version")) is not int or response.get("schema_version") != 1
+            or type(response.get("protocol_version")) is not int or response.get("protocol_version") != PROTOCOL_VERSION
+            or response.get("operation") != OPERATION or response.get("request_id") != request_id):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if response.get("outcome") == "FAILED":
+        if set(response) != {"schema_version", "protocol_version", "operation", "request_id", "outcome", "error_code"}:
+            raise WorkerTransportError("WORKER_UNAVAILABLE")
+        if response.get("error_code") not in {"WORKER_UNAVAILABLE"}:
+            raise WorkerTransportError("WORKER_UNAVAILABLE")
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    expected = {"schema_version", "protocol_version", "operation", "request_id", "outcome",
+                "observed_at_utc", "properties", "audit_receipt"}
+    if set(response) != expected or response.get("outcome") != "SUCCEEDED":
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    properties = response.get("properties")
+    if not isinstance(properties, dict) or set(properties) != set(_PROPERTIES):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if any(not isinstance(properties[key], str) or not _STATE_RE.fullmatch(properties[key]) for key in _PROPERTIES):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    observed = response.get("observed_at_utc")
+    if not isinstance(observed, str) or not observed.endswith("Z") or len(observed) > 40:
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    try:
+        parsed = datetime.fromisoformat(observed[:-1] + "+00:00")
+    except ValueError:
+        raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    receipt = response.get("audit_receipt")
+    if not _validate_receipt(receipt, request_id=request_id, subject_id=subject_id):
+        raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return {"observed_at_utc": observed, "properties": dict(properties), "audit_receipt": dict(receipt)}

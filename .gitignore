@@ -50,3 +50,6 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Artefactos temporales de acceso/desarrollo
+.staging-*/
