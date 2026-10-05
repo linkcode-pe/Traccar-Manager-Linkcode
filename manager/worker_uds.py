@@ -276,9 +276,10 @@ def query_maintenance_logs_prepare(request_id: str, subject_id: str, roles: tupl
     raw=b"".join(chunks)
     try: response=json.loads(raw[:-1].decode(),object_pairs_hook=_pairs_no_duplicates) if raw.endswith(b"\n") and raw.count(b"\n")==1 else None
     except Exception: response=None
-    if not isinstance(response,dict) or set(response)!={"schema_version","protocol_version","operation","request_id","outcome","preparation","preview_id","audit_receipt"} or response.get("operation")!=MAINTENANCE_PREPARE_OPERATION or response.get("request_id")!=request_id or response.get("outcome")!="SUCCEEDED" or response.get("preview_id")!=preview_id: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if not isinstance(response,dict) or set(response)!={"schema_version","protocol_version","operation","request_id","outcome","preparation","preview_id","preparation_stored","audit_receipt"} or response.get("operation")!=MAINTENANCE_PREPARE_OPERATION or response.get("request_id")!=request_id or response.get("outcome")!="SUCCEEDED" or response.get("preview_id")!=preview_id: raise WorkerTransportError("WORKER_UNAVAILABLE")
     preparation=response.get("preparation"); receipt=response.get("audit_receipt")
     required={"preparation_id","preview_id","preview_hash","retention_days","candidate_count","candidate_bytes","issued_at_utc","expires_at_utc","one_time_nonce","revalidated","destructive_action_performed"}
+    if response.get("preparation_stored") is not True: raise WorkerTransportError("WORKER_UNAVAILABLE")
     if not isinstance(preparation,dict) or set(preparation)!=required or preparation.get("preview_id")!=preview_id or preparation.get("retention_days")!=retention_days or preparation.get("revalidated") is not True or preparation.get("destructive_action_performed") is not False: raise WorkerTransportError("WORKER_UNAVAILABLE")
     if not isinstance(receipt,dict) or receipt.get("operation")!=MAINTENANCE_PREPARE_OPERATION or receipt.get("request_id")!=request_id or receipt.get("subject_id")!=subject_id or receipt.get("durable") is not True: raise WorkerTransportError("WORKER_UNAVAILABLE")
-    return {"preparation":preparation,"preview_id":preview_id,"audit_receipt":receipt}
+    return {"preparation":preparation,"preview_id":preview_id,"preparation_stored":True,"audit_receipt":receipt}

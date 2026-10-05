@@ -97,3 +97,6 @@ La UI de producción puede exponer, únicamente después de una preparación aud
 
 ## Incremento 15 - PreparationStore integrado al Worker
 El flujo PREPARE del Worker ahora registra cada preparación exitosa en un `PreparationStore` durable propiedad del Worker, vinculada al `subject_id`, después de finalizar y verificar la auditoría. El store reside bajo `/var/lib/traccar-manager-worker/maintenance-preparations.jsonl`, no contiene primitivas destructivas y todavía no habilita Execute. La UI refleja que la preparación está ligada a sesión y registrada durablemente.
+
+## Incremento 16 - Attestation durable de PREPARE hasta la Web
+El Worker ahora incluye `preparation_stored=true` únicamente cuando el `PreparationStore` confirmó persistencia. El cliente UDS exige ese campo y falla cerrado si falta o es falso; Manager lo conserva y la UI solo muestra la confirmación durable si recibió esa attestation. Esto elimina una afirmación puramente visual: la Web refleja una propiedad confirmada extremo a extremo por Worker. Execute permanece bloqueado y no se consume ninguna preparación desde la UI.

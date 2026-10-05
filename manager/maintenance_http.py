@@ -52,5 +52,5 @@ def prepare_logs(self, request_id: str, principal: SessionPrincipal, preview_id:
     try: ok=self._ledger.verify_finalization_receipt_generic(response["audit_receipt"],request_id=request_id,subject_id=principal.subject_id,role=PREPARE_ROLE,endpoint=MAINTENANCE_PREPARE_ENDPOINT,protocol_operation=PREPARE_OPERATION,operation=PREPARE_OPERATION,target=PREPARE_TARGET)
     except Exception: ok=False
     if ok is not True: raise MaintenanceAPIError("API_AUDIT_UNAVAILABLE")
-    return {"schema_version":1,"request_id":request_id,"operation":PREPARE_OPERATION,"preview_id":preview_id,"preparation":response["preparation"]}
+    return {"schema_version":1,"request_id":request_id,"operation":PREPARE_OPERATION,"preview_id":preview_id,"preparation":response["preparation"],"preparation_stored":response.get("preparation_stored") is True}
 ManagerMaintenanceAPI.prepare_logs=prepare_logs
