@@ -7,7 +7,7 @@ from worker.operations.log_retention_boundary_revalidate import revalidate
 from worker.operations.log_retention_boundary_credential import load_hmac_key
 from worker.operations.log_retention_plan_auth import sign,verify
 SOCKET_PATH='/run/traccar-manager-retention/boundary.sock'
-PREPARATION_ATTESTATION='/run/traccar-manager-retention/preparations.jsonl'
+PREPARATION_ATTESTATION='/var/lib/traccar-manager-retention/preparations.jsonl'
 def _status():
  d=BoundaryContract().public_status();d.update({'status':'healthy','destructive_action_performed':False});return d
 def response()->bytes:

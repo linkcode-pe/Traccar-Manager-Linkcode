@@ -179,3 +179,6 @@ Tras persistir y verificar una preparación, Worker publica `preparation_id + bi
 
 ## Incremento 40 - Sync root E2E de atestaciones activo
 Se instaló `traccar-manager-attestation-sync.path/service`: observa el spool Worker, valida registros mínimos y sólo añade pares nuevos a `/var/lib/traccar-manager-retention/preparations.jsonl`. Verificación productiva: Worker crea spool 0600; helper root sincroniza; Worker no puede escribir la vista; Boundary sí puede leerla. Traccar permanece sin reinicio y producción sigue `DENY_PRODUCTION`.
+
+## Incremento 41 - PREPARE conectado al protocolo HMAC real de Boundary
+El flujo normal de `maintenance.logs.prepare` usa ahora el binding devuelto por `PreparationStore`, publica la atestación y solicita a Boundary `ISSUE_AUTH`; después presenta ese token mediante `VERIFY`. El cliente tolera únicamente la breve carrera de sincronización root y exige como resultado final exacto `DENIED_BY_PRODUCTION_GATE`. La vista de atestaciones de Boundary queda fijada al path root-owned `/var/lib/traccar-manager-retention/preparations.jsonl`.
