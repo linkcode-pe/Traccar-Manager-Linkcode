@@ -3,11 +3,14 @@ from __future__ import annotations
 import os,stat
 from worker.operations.log_retention_boundary_revalidate import revalidate
 from worker.operations.log_retention_sandbox_audit import append_record
+from worker.operations.log_retention_sandbox_claim import claim,ClaimError
 class SandboxExecutionError(RuntimeError):pass
 def execute_sandbox(root:str,names:list[str],retention_days:int,*,sandbox_authorized:bool=False,preparation_id:str='sandbox-test',before_unlink=None,unlink_func=None)->dict[str,object]:
  if not sandbox_authorized:raise SandboxExecutionError('SANDBOX_AUTH_REQUIRED')
  real=os.path.realpath(root)
  if not real.startswith('/tmp/traccar-manager-retention-sandbox/'):raise SandboxExecutionError('PRODUCTION_PATH_DENIED')
+ try:claim(real,preparation_id)
+ except ClaimError as exc:raise SandboxExecutionError(str(exc)) from None
  checks=[revalidate(real,n,retention_days) for n in names]
  if not all(x.eligible for x in checks):raise SandboxExecutionError('REVALIDATION_DENIED')
  unlink_func=unlink_func or os.unlink;outcomes=[];dfd=os.open(real,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC)

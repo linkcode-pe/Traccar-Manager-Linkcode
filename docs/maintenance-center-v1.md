@@ -148,3 +148,6 @@ El ejecutor sandbox ahora registra resultado por archivo. Ante el primer `unlink
 
 ## Incremento 30 - Protección TOCTOU por identidad de archivo
 El ejecutor sandbox abre cada candidato con `O_NOFOLLOW`, captura `st_dev/st_ino`, vuelve a consultar el nombre inmediatamente antes del unlink y exige que siga apuntando al mismo archivo regular. Si el nombre fue sustituido, devuelve `IDENTITY_CHANGED`, entra en fail-stop, no elimina el reemplazo y audita el incidente. Producción continúa `DENY_PRODUCTION`.
+
+## Incremento 31 - Execute single-use y concurrencia
+Cada `preparation_id` sandbox debe adquirir un claim durable mediante creación atómica `O_CREAT|O_EXCL` antes de revalidar o mutar. Bajo 12 consumidores concurrentes exactamente uno obtiene el claim y los demás reciben `PREPARATION_ALREADY_CONSUMED`. Los claims están restringidos al sandbox y `/opt/traccar/logs` es rechazado. Esto protege doble clic, retry y carreras concurrentes. Producción continúa `DENY_PRODUCTION`.
