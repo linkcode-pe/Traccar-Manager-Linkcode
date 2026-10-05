@@ -192,3 +192,6 @@ El gate no destructivo de EXECUTE exige ahora nonce válido dentro de la prepara
 
 ## Incremento 44 - EXECUTE conectado al runtime UDS Worker
 El runtime productivo reconoce `maintenance.logs.execute`, reconstruye una `LogRetentionPreparation` tipada y ejecuta el dispatcher auditado con PreparationStore + ConsumptionStore durables. La secuencia permanece `AUDIT_PREPARE → consume once → FEATURE_GATE_BLOCKED`; no existe unlink. Suite UDS ejecutada como usuario Worker: 16/16 OK.
+
+## Incremento 45 - EXECUTE HTTP conectado a UDS sin capacidad destructiva
+Manager expone `POST /api/maintenance/logs/execute` sólo a sesiones con `maintenance.logs.execute`. El body admite únicamente request_id, preparación tipada, confirmación y nonce. El cliente UDS valida identidad del Worker por SO_PEERCRED y acepta únicamente `BLOCKED_BY_FEATURE_GATE` con `destructive_action_performed=false`; cualquier desviación falla cerrado. La frontera destructiva sigue sin unlink.

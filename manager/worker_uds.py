@@ -309,3 +309,32 @@ def query_retention_boundary_health(request_id:str,subject_id:str,roles:tuple[st
     expected={'active_log_denied':True,'allowed_name_pattern':'tracker-server.log.YYYYMMDD','allowed_operation':'DELETE_EXPIRED_HISTORICAL_LOGS','component':'traccar-manager-retention-boundary','destructive_action_performed':False,'mode':'DENY_PRODUCTION','network_access':False,'production_access':False,'separate_identity_required':True,'shell_access':False,'status':'healthy'}
     if not isinstance(r,dict) or set(r)!={'schema_version','protocol_version','operation','request_id','outcome','boundary'} or r.get('operation')!=BOUNDARY_HEALTH_OPERATION or r.get('request_id')!=request_id or r.get('outcome')!='SUCCEEDED' or r.get('boundary')!=expected:raise WorkerTransportError("WORKER_UNAVAILABLE")
     return dict(r['boundary'])
+
+MAINTENANCE_EXECUTE_OPERATION = "maintenance.logs.execute"
+MAINTENANCE_EXECUTE_ROLE = "maintenance.logs.execute"
+MAINTENANCE_EXECUTE_ENDPOINT = "/api/maintenance/logs/execute"
+
+def query_maintenance_logs_execute(request_id, subject_id, roles, preparation, confirmation, nonce):
+    if not isinstance(request_id,str) or not _REQUEST_ID_RE.fullmatch(request_id) or not isinstance(subject_id,str) or not _SUBJECT_RE.fullmatch(subject_id) or not isinstance(roles,tuple) or MAINTENANCE_EXECUTE_ROLE not in roles or not isinstance(preparation,dict) or not isinstance(confirmation,str) or not isinstance(nonce,str): raise WorkerTransportError("INVALID_REQUEST")
+    if os.geteuid()!=WEB_UID: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    worker_uid,worker_gid,_=_verify_socket_path()
+    msg={"protocol_version":1,"operation":MAINTENANCE_EXECUTE_OPERATION,"request_id":request_id,"subject_id":subject_id,"roles":[MAINTENANCE_EXECUTE_ROLE],"payload":{"preparation":preparation,"confirmation":confirmation,"nonce":nonce}}
+    c=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); c.settimeout(ROUNDTRIP_TIMEOUT_SECONDS)
+    try:
+        c.connect(SOCKET_PATH); _pid,uid,gid=_peer_credentials(c)
+        if uid!=worker_uid or gid!=worker_gid: raise WorkerTransportError("WORKER_UNAVAILABLE")
+        c.sendall(json.dumps(msg,sort_keys=True,separators=(",",":"),allow_nan=False).encode()+b"\n"); c.shutdown(socket.SHUT_WR); raw=b""
+        while True:
+            x=c.recv(2048)
+            if not x: break
+            raw+=x
+            if len(raw)>MAX_MESSAGE_BYTES: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    except WorkerTransportError: raise
+    except (OSError,TimeoutError): raise WorkerTransportError("WORKER_UNAVAILABLE") from None
+    finally: c.close()
+    try: r=json.loads(raw[:-1].decode(),object_pairs_hook=_pairs_no_duplicates) if raw.endswith(b"\n") and raw.count(b"\n")==1 else None
+    except Exception: r=None
+    if not isinstance(r,dict) or r.get("operation")!=MAINTENANCE_EXECUTE_OPERATION or r.get("request_id")!=request_id or r.get("outcome")!="SUCCEEDED": raise WorkerTransportError("WORKER_UNAVAILABLE")
+    e=r.get("execution")
+    if not isinstance(e,dict) or e.get("outcome")!="BLOCKED_BY_FEATURE_GATE" or e.get("destructive_action_performed") is not False: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    return e

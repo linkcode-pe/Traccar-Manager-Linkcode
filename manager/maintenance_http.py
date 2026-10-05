@@ -65,3 +65,15 @@ def boundary_health(self,request_id:str,principal:SessionPrincipal)->dict[str,ob
         raise MaintenanceAPIError('API_PROVIDER_UNAVAILABLE') from None
     return {'schema_version':1,'request_id':request_id,'boundary':b}
 ManagerMaintenanceAPI.boundary_health=boundary_health
+
+from manager.worker_uds import query_maintenance_logs_execute
+EXECUTE_ROLE="maintenance.logs.execute"
+def execute_logs(self, request_id, principal, preparation, confirmation, nonce):
+    if not isinstance(principal,SessionPrincipal): raise MaintenanceAPIError("API_UNAUTHORIZED")
+    if EXECUTE_ROLE not in principal.roles: raise MaintenanceAPIError("API_FORBIDDEN")
+    try: result=query_maintenance_logs_execute(request_id,principal.subject_id,principal.roles,preparation,confirmation,nonce)
+    except WorkerTransportError as exc:
+        if str(exc)=="INVALID_REQUEST": raise MaintenanceAPIError("API_INVALID_REQUEST") from None
+        raise MaintenanceAPIError("API_PROVIDER_UNAVAILABLE") from None
+    return {"schema_version":1,"request_id":request_id,"operation":"maintenance.logs.execute","execution":result}
+ManagerMaintenanceAPI.execute_logs=execute_logs

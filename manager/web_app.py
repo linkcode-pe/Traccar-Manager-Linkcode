@@ -87,7 +87,7 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Execute validado · denegado por gate final</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · EXECUTE conectado al runtime UDS · consumo único + replay rechazado · feature gate bloqueado · sin unlink</span></div>
+        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Execute validado · denegado por gate final</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · EXECUTE HTTP→UDS activo · RBAC + consumo único + anti-replay · feature gate bloqueado · sin unlink</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
@@ -669,6 +669,21 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             status={"API_FORBIDDEN":HTTPStatus.FORBIDDEN,"API_INVALID_REQUEST":HTTPStatus.BAD_REQUEST,"API_AUDIT_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE,"API_PROVIDER_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE}.get(exc.code,HTTPStatus.INTERNAL_SERVER_ERROR); self._json(status,{"error":"maintenance_unavailable","request_id":data["request_id"]}); return
         self._json(HTTPStatus.OK,result)
 
+    def _handle_maintenance_logs_execute(self) -> None:
+        token=self._cookie_token(); principal=self.server.session_store.get(token) if token is not None else None
+        if principal is None: self._json(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"}); return
+        if "maintenance.logs.execute" not in principal.roles: self._json(HTTPStatus.FORBIDDEN,{"error":"forbidden"}); return
+        try:
+            length=int(self.headers.get("Content-Length","0")); data=json.loads(self.rfile.read(length).decode("utf-8"))
+            if not isinstance(data,dict) or set(data)!={"request_id","preparation","confirmation","nonce"}: raise ValueError()
+            if not isinstance(data["request_id"],str) or not data["request_id"] or not isinstance(data["preparation"],dict) or not isinstance(data["confirmation"],str) or not isinstance(data["nonce"],str): raise ValueError()
+        except Exception: self._json(HTTPStatus.BAD_REQUEST,{"error":"invalid_request"}); return
+        try: result=self.server.maintenance_api.execute_logs(data["request_id"],principal,data["preparation"],data["confirmation"],data["nonce"])
+        except MaintenanceAPIError as exc:
+            status={"API_FORBIDDEN":HTTPStatus.FORBIDDEN,"API_INVALID_REQUEST":HTTPStatus.BAD_REQUEST,"API_PROVIDER_UNAVAILABLE":HTTPStatus.SERVICE_UNAVAILABLE}.get(exc.code,HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._json(status,{"error":"maintenance_unavailable","request_id":data["request_id"]}); return
+        self._json(HTTPStatus.OK,result)
+
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
         if path == "/":
@@ -699,6 +714,8 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_logout()
         elif path == "/api/maintenance/logs/prepare":
             self._handle_maintenance_logs_prepare()
+        elif path == "/api/maintenance/logs/execute":
+            self._handle_maintenance_logs_execute()
         elif path in ("/", "/health", "/app.js", "/api/auth/me", "/api/dashboard/snapshot", "/api/maintenance/logs/preview"):
             self._method_not_allowed("GET")
         else:
