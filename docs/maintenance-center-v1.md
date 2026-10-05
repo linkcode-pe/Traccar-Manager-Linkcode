@@ -185,3 +185,6 @@ El flujo normal de `maintenance.logs.prepare` usa ahora el binding devuelto por 
 
 ## Incremento 42 - Identidad PREVIEW estable durante el día
 La prueba E2E productiva detectó que `cutoff_utc` variaba cada segundo, haciendo que un PREPARE inmediato pudiera fallar `PREVIEW_STALE`. Se corrige de forma fail-closed: el cutoff de retención se normaliza a 00:00:00 UTC del día límite. La lista, tamaños y mtimes de candidatos siguen formando parte del hash; cualquier cambio real en candidatos continúa invalidando PREPARE. Suite de mantenimiento: 28/28 OK. Producción permanece DENY_PRODUCTION.
+
+## Incremento 43 - Contrato EXECUTE de consumo único
+El gate no destructivo de EXECUTE exige ahora nonce válido dentro de la preparación durable. `PreparationConsumptionStore` liga el consumo a preparation_id, preview, retención, candidatos, vigencia y one_time_nonce, persiste con flock+fsync y rechaza replay como `PREPARATION_ALREADY_CONSUMED`. El consumo ocurre sólo después de AUDIT_PREPARE. No existe unlink en este incremento; producción permanece DENY_PRODUCTION.

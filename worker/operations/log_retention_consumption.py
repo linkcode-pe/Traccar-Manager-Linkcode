@@ -16,6 +16,7 @@ class PreparationConsumptionStore:
  def __init__(self,path:Path): self.path=Path(path)
  def consume(self,preparation:LogRetentionPreparation)->ConsumptionReceipt:
   if not isinstance(preparation,LogRetentionPreparation): raise PreparationConsumptionError('INVALID_PREPARATION')
+  if not isinstance(preparation.one_time_nonce,str) or len(preparation.one_time_nonce)<16: raise PreparationConsumptionError('INVALID_NONCE')
   binding={"preparation_id":preparation.preparation_id,"preview_id":preparation.preview_id,"preview_hash":preparation.preview_hash,"retention_days":preparation.retention_days,"candidate_count":preparation.candidate_count,"candidate_bytes":preparation.candidate_bytes,"issued_at_utc":preparation.issued_at_utc,"expires_at_utc":preparation.expires_at_utc,"one_time_nonce":preparation.one_time_nonce}
   digest=hashlib.sha256(canonical_json(binding)).hexdigest()
   self.path.parent.mkdir(parents=True,exist_ok=True)
