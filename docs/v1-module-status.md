@@ -4,7 +4,7 @@
 |---|---|---|---|
 | M0 | Core/seguridad | baseline operativo | mantener gates |
 | M1 | Dashboard | READ_ONLY parcial | enriquecer |
-| M2 | Mantenimiento | PREVIEW logs | PREPARED logs; luego files |
+| M2 | Mantenimiento | PREVIEW productivo + núcleo PREPARED en rama | integrar PREPARED auditado por Worker; luego files |
 | M3 | Datos Traccar | PLANNED | diseño read-only |
 | M4 | Usuarios | PLANNED | read-only |
 | M5 | Dispositivos | PLANNED | read-only |

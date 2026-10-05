@@ -58,3 +58,9 @@ La interfaz de Traccar Manager adopta como referencia visual oficial el `/panel`
 El Preview de logs incorpora métricas de inventario no destructivas: cantidad y tamaño total de logs históricos allowlisted, cantidad y bytes candidatos y rango temporal de los candidatos. El dashboard presenta estas métricas en tarjetas siguiendo el sistema visual derivado de `/panel`. El contrato conserva `active_log_protected=true` y `destructive_action_performed=false`; no se incorpora endpoint, permiso ni botón de eliminación.
 
 La futura limpieza real queda deliberadamente fuera de este incremento. Antes de implementarla deberá definirse un protocolo independiente de preparación/confirmación que vincule una autorización efímera a un `preview_id` inmutable y vuelva a validar los archivos inmediatamente antes de cualquier mutación.
+
+## Incremento 6 — núcleo PREPARED sin ejecución
+
+Se incorpora el contrato puro `log_retention_prepare`: recibe exclusivamente un `preview_id` válido y la retención, vuelve a escanear la ruta fija `/opt/traccar/logs`, recalcula el hash del plan y falla con `PREVIEW_STALE` si cualquier candidato cambió. Si coincide, crea una preparación efímera de 5 minutos ligada al hash, conteo/bytes y nonce de un solo uso. El resultado declara `destructive_action_performed=false`.
+
+Este incremento **no expone todavía endpoint HTTP/UDS, no concede `maintenance.logs.prepare` a ninguna cuenta y no contiene executor de borrado**. La siguiente puerta es integrar esta preparación con auditoría durable y el protocolo Worker; solo después podrá mostrarse en UI.
