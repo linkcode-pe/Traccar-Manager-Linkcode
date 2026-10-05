@@ -846,6 +846,47 @@ class AuditLedger:
             return None
         return final
 
+    def finalization_receipt_generic(self, *, request_id: str, subject_id: str, role: str,
+                                     endpoint: str, protocol_operation: str, operation: str,
+                                     target: Mapping[str, str]) -> Optional[dict[str, Any]]:
+        report, records = self._read_verified_records()
+        if not report.valid:
+            return None
+        finals = [r for r in records if r.get("event_type") == "AUDIT_FINALIZED" and r.get("request_id") == request_id]
+        if len(finals) != 1:
+            return None
+        final = finals[0]; job_id = final.get("job_id")
+        job_records = [r for r in records if r.get("job_id") == job_id]
+        expected = [("REQUEST_RECEIVED","REQUEST"),("VALIDATION_PASSED","VALIDATION"),
+                    ("PREVIEW_STARTED","PREVIEW"),("PREVIEW_COMPLETED","PREVIEW"),
+                    ("AUTHORIZATION_REQUESTED","AUTHORIZATION"),("AUTHORIZATION_GRANTED","AUTHORIZATION"),
+                    ("EXECUTION_STARTED","AUDIT_PREPARE"),("EXECUTION_COMPLETED","AUDIT_RESULT"),
+                    ("AUDIT_FINALIZED","AUDIT_FINALIZATION")]
+        if [(r.get("event_type"),r.get("phase")) for r in job_records] != expected or job_records[-1] is not final:
+            return None
+        for record in job_records:
+            requester=record.get("requester"); metadata=record.get("metadata")
+            if (record.get("request_id") != request_id or record.get("operation") != operation
+                    or record.get("target") != dict(target) or not isinstance(requester, Mapping)
+                    or requester.get("subject_id") != subject_id or requester.get("roles") != [role]
+                    or not isinstance(metadata, Mapping) or metadata.get("endpoint") != endpoint
+                    or metadata.get("protocol_operation") != protocol_operation):
+                return None
+        result=job_records[-2].get("result")
+        if (not isinstance(result, Mapping) or result.get("confirmed") is not True
+                or result.get("outcome") != "SUCCEEDED" or job_records[-1].get("status") != "FINALIZED"):
+            return None
+        receipt=_receipt(final)
+        return {"schema_version":1,"protocol_version":1,"request_id":request_id,
+                "operation":protocol_operation,"ledger_operation":operation,"endpoint":endpoint,
+                "subject_id":subject_id,"role":role,"phase":"AUDIT_FINALIZATION",
+                "event_id":receipt.event_id,"ledger_sequence":receipt.ledger_sequence,
+                "previous_event_hash":receipt.previous_event_hash,"event_hash":receipt.event_hash,"durable":True}
+
+    def verify_finalization_receipt_generic(self, receipt: Mapping[str, Any], **expected: Any) -> bool:
+        rebuilt=self.finalization_receipt_generic(**expected)
+        return isinstance(receipt, Mapping) and rebuilt is not None and dict(receipt) == rebuilt
+
     def finalization_receipt(self, *, request_id: str, subject_id: str, role: str,
                              endpoint: str, protocol_operation: str,
                              operation: str, target: Mapping[str, str]) -> Optional[dict[str, Any]]:

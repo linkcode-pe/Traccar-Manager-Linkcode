@@ -28,3 +28,11 @@ Política inicial:
 No se reutiliza directamente el script destructivo `traccar_log_retencion_30d.sh` desde la web. Ese script queda como referencia histórica hasta que la ejecución controlada tenga contrato propio.
 
 La retención de posiciones/MySQL permanece fuera de este incremento y no se toca.
+
+## Incremento 2 — Worker + RBAC + auditoría
+
+`maintenance.logs.preview` ya está definido como operación del protocolo UDS del Worker. Acepta únicamente `retention_days` entre 30 y 3650, exige el rol servidor `maintenance.logs.preview` y usa el directorio fijo `/opt/traccar/logs`; el cliente no puede suministrar rutas.
+
+La operación recorre el flujo auditado de nueve eventos (request, validation, preview, autorización RBAC_READ, audit prepare, result y finalization) sobre el ledger compartido. Se añadió un recibo de finalización genérico verificable para operaciones read-only que no tienen el schema específico de systemd.
+
+Este incremento **no está desplegado en producción y no expone todavía una ruta HTTP ni botón en el dashboard**. Tampoco existe operación de borrado. El siguiente incremento será el cliente Manager/UDS y la API/UI de preview, manteniendo la operación no destructiva.

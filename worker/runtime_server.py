@@ -27,6 +27,10 @@ from api.providers.traccar_status_protocol_v1 import (
 from worker.audit.ledger import AuditLedger, SHARED_STATUS_AUDIT_PATH
 from worker.dispatcher import ActorContext, DispatchError, Job, create_preview, dispatch_job, record_authorization
 from worker.operations.traccar_status import OperationError, handle as read_fixed_systemd_status
+from worker.maintenance_preview_dispatch import (
+    MaintenancePreviewError, OPERATION as MAINTENANCE_OPERATION, ROLE as MAINTENANCE_ROLE,
+    TARGET as MAINTENANCE_TARGET, execute as execute_maintenance_preview,
+)
 
 SOCKET_PATH = "/run/traccar-manager/traccar-status.sock"
 AUDIT_PATH = SHARED_STATUS_AUDIT_PATH
@@ -40,6 +44,7 @@ _DISPATCH_OPERATION = "traccar.status"
 ROLE = "traccar.status.read"
 PROTOCOL_VERSION = 1
 ENDPOINT = "/api/dashboard/snapshot"
+MAINTENANCE_ENDPOINT = "/api/maintenance/logs/preview"
 MAX_MESSAGE_BYTES = 8192
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SUBJECT_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -90,16 +95,27 @@ def _read_message(connection: socket.socket) -> dict[str, object]:
         raise RequestError()
     if type(message.get("protocol_version")) is not int or message["protocol_version"] != PROTOCOL_VERSION:
         raise RequestError()
-    if message.get("operation") != OPERATION or message.get("payload") != {}:
+    operation = message.get("operation")
+    payload = message.get("payload")
+    roles = message.get("roles")
+    if operation == OPERATION:
+        if payload != {} or roles != [ROLE]:
+            raise RequestError()
+    elif operation == MAINTENANCE_OPERATION:
+        if (not isinstance(payload, dict) or set(payload) != {"retention_days"}
+                or type(payload.get("retention_days")) is not int
+                or not 30 <= payload["retention_days"] <= 3650
+                or roles != [MAINTENANCE_ROLE]):
+            raise RequestError()
+    else:
         raise RequestError()
     request_id = message.get("request_id")
     subject_id = message.get("subject_id")
-    roles = message.get("roles")
     if not isinstance(request_id, str) or not _REQUEST_ID_RE.fullmatch(request_id):
         raise RequestError()
     if not isinstance(subject_id, str) or not _SUBJECT_RE.fullmatch(subject_id):
         raise RequestError()
-    if not isinstance(roles, list) or roles != [ROLE]:
+    if not isinstance(roles, list):
         raise RequestError()
     return message
 
@@ -142,7 +158,7 @@ def _executor(_payload):
         return {"confirmed": True, "outcome": "FAILED", "error_code": "E500_EXECUTION_FAILED"}
 
 
-def _perform(message: dict[str, object], ledger: AuditLedger) -> dict[str, object]:
+def _perform_status(message: dict[str, object], ledger: AuditLedger) -> dict[str, object]:
     expected = {"protocol_version", "operation", "request_id", "subject_id", "roles", "payload"}
     if (not isinstance(message, dict) or set(message) != expected
             or type(message.get("protocol_version")) is not int or message["protocol_version"] != PROTOCOL_VERSION
@@ -203,12 +219,43 @@ def _perform(message: dict[str, object], ledger: AuditLedger) -> dict[str, objec
     }
 
 
-def _respond(connection: socket.socket, request_id: str, *, result=None) -> None:
+# Backward-compatible internal name retained for the validated status tests.
+_perform = _perform_status
+
+def _perform_maintenance(message: dict[str, object], ledger: AuditLedger) -> dict[str, object]:
+    if (message.get("operation") != MAINTENANCE_OPERATION or message.get("roles") != [MAINTENANCE_ROLE]
+            or not isinstance(message.get("payload"), dict)):
+        raise RequestError()
+    request_id = message["request_id"]
+    subject_id = message["subject_id"]
+    try:
+        result = execute_maintenance_preview(
+            ledger=ledger, request_id=request_id, subject_id=subject_id,
+            roles=(MAINTENANCE_ROLE,), retention_days=message["payload"]["retention_days"],
+        )
+    except MaintenancePreviewError:
+        raise RequestError() from None
+    receipt = ledger.finalization_receipt_generic(
+        request_id=request_id, subject_id=subject_id, role=MAINTENANCE_ROLE,
+        endpoint=MAINTENANCE_ENDPOINT, protocol_operation=MAINTENANCE_OPERATION,
+        operation=MAINTENANCE_OPERATION, target=MAINTENANCE_TARGET,
+    )
+    if not isinstance(receipt, dict):
+        raise RequestError()
+    return {
+        "schema_version": 1, "protocol_version": PROTOCOL_VERSION,
+        "operation": MAINTENANCE_OPERATION, "request_id": request_id,
+        "outcome": "SUCCEEDED", "preview": result["preview"],
+        "preview_id": result["preview_id"], "audit_receipt": receipt,
+    }
+
+
+def _respond(connection: socket.socket, request_id: str, *, operation: str = OPERATION, result=None) -> None:
     if result is not None:
         payload = result
     else:
         payload = {"schema_version": 1, "protocol_version": PROTOCOL_VERSION,
-                   "operation": OPERATION, "request_id": request_id,
+                   "operation": operation, "request_id": request_id,
                    "outcome": "FAILED", "error_code": "WORKER_UNAVAILABLE"}
     try:
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8") + b"\n"
@@ -240,19 +287,26 @@ def _check_runtime(worker_uid: int, ipc_gid: int) -> None:
         raise OSError("socket path already exists")
 
 
-def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger) -> None:
+def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None) -> None:
     request_id = "invalid"
+    operation = OPERATION
     try:
         if _peer_credentials(connection) != (web_uid, web_gid):
             raise RequestError()
         message = _read_message(connection)
         request_id = message["request_id"]
-        result = _perform(message, ledger)
-        _respond(connection, request_id, result=result)
+        operation = message["operation"]
+        if operation == OPERATION:
+            result = _perform_status(message, ledger)
+        elif operation == MAINTENANCE_OPERATION and maintenance_ledger is not None:
+            result = _perform_maintenance(message, maintenance_ledger)
+        else:
+            raise RequestError()
+        _respond(connection, request_id, operation=operation, result=result)
     except (RequestError, DispatchError, OSError, ValueError, TypeError, KeyError, RuntimeError):
-        _respond(connection, request_id)
+        _respond(connection, request_id, operation=operation)
     except Exception:
-        _respond(connection, request_id)
+        _respond(connection, request_id, operation=operation)
 
 
 def serve_forever() -> None:
@@ -281,6 +335,14 @@ def serve_forever() -> None:
     report = ledger.verify()
     if not report.valid:
         raise SystemExit(1)
+    maintenance_ledger = AuditLedger(
+        AUDIT_PATH, create_mode=0o640,
+        expected_owner_uid=os.geteuid(), expected_group_gid=worker_gid,
+        expected_file_mode=0o640, expected_directory_mode=0o750,
+        event_metadata={"endpoint": MAINTENANCE_ENDPOINT, "protocol_operation": MAINTENANCE_OPERATION},
+    )
+    if not maintenance_ledger.verify().valid:
+        raise SystemExit(1)
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     listener.settimeout(1.0)
     listener.bind(SOCKET_PATH)
@@ -301,7 +363,7 @@ def serve_forever() -> None:
                     break
                 raise
             with connection:
-                _serve_one(connection, web_uid, web_gid, ledger)
+                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger)
     finally:
         listener.close()
         try:
