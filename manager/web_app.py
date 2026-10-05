@@ -43,41 +43,20 @@ PAGE = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Traccar Manager</title>
+  <!-- Manager Web -->
   <style>
-    :root { color-scheme: light; font-family: system-ui, sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-           padding: 1.25rem 0; box-sizing: border-box; background: #f1f5f9; color: #0f172a; }
-    main { width: min(44rem, calc(100% - 2rem)); box-sizing: border-box;
-           padding: clamp(1.25rem, 4vw, 2.25rem); border: 1px solid #dbe3ee; border-radius: 1rem;
-           background: #fff; box-shadow: 0 1rem 3rem #0f172a12; }
-    .eyebrow { color: #2563eb; font-size: .8rem; font-weight: 700;
-               letter-spacing: .12em; text-transform: uppercase; }
-    h1 { margin: .5rem 0; font-size: clamp(2rem, 6vw, 3rem); }
-    h2, h3 { margin-top: 0; }
-    p { line-height: 1.5; }
-    .muted { color: #475569; }
-    .status { color: #92400e; font-weight: 700; }
-    .notice, .card { margin-top: 1.25rem; padding: 1rem; border: 1px solid #dbe3ee;
-                     border-radius: .75rem; background: #f8fafc; }
-    label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }
-    input { width: 100%; box-sizing: border-box; padding: .75rem; border: 1px solid #94a3b8;
-            border-radius: .5rem; font: inherit; }
-    button { margin-top: 1rem; padding: .7rem 1rem; border: 0; border-radius: .5rem;
-             background: #1d4ed8; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
-    button:disabled { opacity: .65; cursor: wait; }
-    .secondary { background: #475569; }
-    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .error { color: #b91c1c; }
-    [hidden] { display: none !important; }
-    noscript { display: block; margin-top: 1rem; color: #b91c1c; }
+    :root{color-scheme:dark;--bg:#080d18;--card:#121c2d;--card2:#0f1726;--border:rgba(164,185,220,.14);--text:#edf3ff;--muted:#91a0b9;--cyan:#54d7e8;--green:#57d49a;--amber:#f4bd61;--danger:#ff8585}
+    *{box-sizing:border-box}html{min-width:320px;background:var(--bg)}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 12% 0%,rgba(34,92,132,.22),transparent 38%),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{width:min(1120px,calc(100% - 48px));margin:auto;padding:32px 0 28px}.brand{display:flex;align-items:center;gap:15px;margin-bottom:28px}.mark{display:grid;place-items:center;width:52px;height:52px;border:1px solid rgba(84,215,232,.35);border-radius:15px;background:rgba(84,215,232,.1);color:var(--cyan);font-size:23px;font-weight:800}.brand-copy{min-width:0}.eyebrow{margin:0 0 5px;color:var(--cyan);font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}h1{margin:0;font-size:clamp(22px,3vw,29px);line-height:1.15}h2{margin:0 0 12px;font-size:19px;letter-spacing:-.02em}h3{margin:0 0 7px;font-size:16px}p{line-height:1.5}.muted{color:var(--muted);margin:5px 0 0;font-size:13px}.status{color:var(--amber);font-weight:700}.notice,.card{margin-top:12px;padding:17px 18px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(150deg,#131d2f,#0e1523)}
+    #dashboard-panel{display:grid;gap:13px}.dashboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.card{position:relative;overflow:hidden}.card:after{position:absolute;top:-55px;right:-45px;width:125px;height:125px;border:1px solid var(--cyan);border-radius:50%;content:"";opacity:.06;pointer-events:none}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0 18px;padding:11px 14px;border:1px solid var(--border);border-radius:11px;background:rgba(17,26,43,.75)}label{display:block;margin:15px 0 6px;color:#cbd5e5;font-size:11px;font-weight:700}input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:#0b1321;color:var(--text);font:inherit;outline:none}input:focus{border-color:rgba(84,215,232,.55);box-shadow:0 0 0 3px rgba(84,215,232,.08)}button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:13px;padding:0 15px;border:1px solid rgba(84,215,232,.32);border-radius:11px;background:rgba(84,215,232,.1);color:var(--cyan);font:inherit;font-weight:700;cursor:pointer}button:hover{background:rgba(84,215,232,.18)}button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}button:disabled{opacity:.55;cursor:wait}.secondary{margin-top:0;border-color:var(--border);background:rgba(145,160,185,.08);color:#cbd5e5}.error{color:#ffc1c1}.notice.error{border-color:rgba(255,112,112,.3);background:rgba(255,112,112,.08)}#maintenance-candidates{margin:12px 0 0;padding-left:20px;color:#d3dced;font-size:12px}#maintenance-candidates li{padding:5px 0;border-bottom:1px solid rgba(164,185,220,.08)}[hidden]{display:none!important}noscript{display:block;margin-top:15px;color:#ffc1c1}
+    @media(max-width:720px){main{width:calc(100% - 22px);padding:17px 0}.brand{margin-bottom:20px}.mark{width:44px;height:44px}.dashboard-grid{grid-template-columns:1fr}.toolbar{align-items:flex-start}.card{padding:14px}.notice{padding:13px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
   </style>
   <script src="/manager/app.js" defer></script>
 </head>
 <body>
   <main>
-    <p class="eyebrow">Manager Web</p>
-    <h1>Traccar Manager</h1>
-    <p class="muted">Panel autenticado de solo lectura.</p>
+    <header class="brand"><div class="mark" aria-hidden="true">T</div><div class="brand-copy"><p class="eyebrow">ADMINISTRACIÓN TRACCAR</p><h1>TRACCAR MANAGER</h1><p class="muted">Control, mantenimiento y operaciones auditadas</p></div></header>
     <p id="boot-status" class="notice" role="status">Comprobando sesión…</p>
     <section id="login-panel" aria-labelledby="login-title" hidden>
       <h2 id="login-title">Iniciar sesión</h2>
@@ -100,6 +79,7 @@ PAGE = """<!doctype html>
     </section>
     <section id="dashboard-panel" aria-labelledby="dashboard-title" hidden>
       <h2 id="dashboard-title">Dashboard</h2>
+      <div class="dashboard-grid">
       <article class="card" aria-labelledby="traccar-title">
         <h3 id="traccar-title">Traccar</h3>
         <p id="traccar-state" class="status">Proveedor pendiente</p>
@@ -116,6 +96,7 @@ PAGE = """<!doctype html>
         <ul id="maintenance-candidates"></ul>
         <p id="maintenance-error" class="error" role="alert" hidden></p>
       </article>
+      </div>
       <p id="dashboard-error" class="error" role="alert" hidden></p>
     </section>
     <noscript>Activa JavaScript para iniciar sesión y consultar el dashboard.</noscript>

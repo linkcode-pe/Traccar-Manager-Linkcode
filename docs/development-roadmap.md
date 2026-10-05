@@ -28,3 +28,6 @@ La automatización puede simplificar pasos operativos, pero no eliminar las fron
 ## Regla de entrega
 
 GitHub es la referencia del código. Cada fase relevante debe actualizar esta documentación, ejecutarse en rama, pasar sus pruebas/gates y revisarse antes de integrarse a `main`.
+### Regla transversal de interfaz
+
+Toda interfaz nueva o existente de Traccar Manager debe conservar el sistema visual derivado del `/panel` original: dashboard administrativo oscuro, tarjetas compactas, acento cian, estados claros y responsive. La identidad visual no altera las fronteras de seguridad ni incorpora al Manager el acceso directo a datos usado por el panel histórico.

@@ -48,3 +48,7 @@ La interfaz usa exclusivamente nodos de texto para representar nombres/fechas de
 La ruta HTTP y la UI fueron ejercitadas en un `ManagerHTTPServer` efímero ligado exclusivamente a `127.0.0.1`, con sesión y proveedor ficticios. Se validó HTTP 200 para una sesión con `maintenance.logs.preview`, rechazo 401 sin sesión, rechazo de parámetros fuera de política y de cualquier intento de introducir una ruta arbitraria, además de 405 para POST. La página real contiene el Centro de mantenimiento y no contiene control de eliminación.
 
 Esta validación no accedió a MySQL, a la base de datos de Traccar ni ejecutó limpieza. No requiere ni implica despliegue del código Phase 4 en los servicios persistentes.
+
+## Regla visual oficial — continuidad con `/panel`
+
+La interfaz de Traccar Manager adopta como referencia visual oficial el `/panel` original del servidor: fondo azul-negro, tarjetas oscuras con bordes discretos, acento cian, estados semánticos, radios moderados, jerarquía compacta y diseño responsive. La referencia se traduce a componentes propios del Manager; no se copia la lógica PHP ni el acceso directo de `/panel` a MySQL. Esta regla aplica a login, dashboard, mantenimiento y módulos futuros para conservar una identidad única.
