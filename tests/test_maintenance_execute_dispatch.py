@@ -30,3 +30,16 @@ class OrderingTests(Tests):
  def test_successful_audit_prepare_then_consumes(self):
   r=execute(ledger=self.ledger,request_id='execute-order-ok',subject_id='a'*32,roles=(ROLE,),preparation=self.prep,confirmation='CONFIRMAR LIMPIEZA',nonce=self.prep.one_time_nonce,consumption_store=self.store,preview_provider=lambda *a,**k:self.p)
   self.assertTrue(r['gate']['authorization_consumed']);self.assertTrue(self.store.path.exists())
+
+class BindingTests(Tests):
+ def test_actor_bound_issued_preparation_required_when_store_supplied(self):
+  from worker.operations.log_retention_preparation_store import PreparationStore
+  ps=PreparationStore(Path(self.t.name)/'issued.jsonl');ps.issue(self.prep,subject_id='a'*32)
+  r=execute(ledger=self.ledger,request_id='execute-binding-ok',subject_id='a'*32,roles=(ROLE,),preparation=self.prep,confirmation='CONFIRMAR LIMPIEZA',nonce=self.prep.one_time_nonce,consumption_store=self.store,preparation_store=ps,preview_provider=lambda *a,**k:self.p)
+  self.assertEqual('BLOCKED_BY_FEATURE_GATE',r['outcome'])
+ def test_actor_substitution_fails_before_consumption(self):
+  from worker.operations.log_retention_preparation_store import PreparationStore
+  ps=PreparationStore(Path(self.t.name)/'issued.jsonl');ps.issue(self.prep,subject_id='a'*32)
+  with self.assertRaisesRegex(MaintenanceExecuteError,'PREPARATION_ACTOR_MISMATCH'):
+   execute(ledger=self.ledger,request_id='execute-binding-bad',subject_id='b'*32,roles=(ROLE,),preparation=self.prep,confirmation='CONFIRMAR LIMPIEZA',nonce=self.prep.one_time_nonce,consumption_store=self.store,preparation_store=ps,preview_provider=lambda *a,**k:self.p)
+  self.assertFalse(self.store.path.exists())

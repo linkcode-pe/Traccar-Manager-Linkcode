@@ -88,3 +88,6 @@ Se implementó un store append-only para demostrar que una preparación fue emit
 
 ## Incremento 12 - Orden durable AUDIT_PREPARE antes de consumo
 El dispatch Execute fue reordenado para separar revalidación de consumo. Primero valida/revalida sin gastar la preparación, registra y verifica durablemente `AUDIT_PREPARE`, y solo entonces ejecuta el consumo one-shot. Una prueba con fallo inyectado de `prepare_execution` demuestra que `AUDIT_UNAVAILABLE` deja el store de consumo inexistente; una ruta exitosa demuestra que el consumo ocurre después del prepare durable. Execute sigue bloqueado y sin helper destructivo conectado.
+
+## Incremento 13 - Binding completo y señalización web segura
+El Execute aislado vincula preparación completa + actor + confirmación + huella del nonce al `parameters_hash` y puede exigir emisión previa actor-bound. La UI de Manager muestra explícitamente el flujo `Analizar -> Preparar -> Ejecutar bloqueado`, para que la preparación visible no se interprete como borrado habilitado. La mejora web no incorpora endpoint Execute ni acción destructiva.

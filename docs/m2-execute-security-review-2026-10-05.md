@@ -61,3 +61,6 @@ Incremento 11 implementa y prueba `PreparationStore` durable actor-bound. B1 que
 
 ## Avance B2
 Incremento 12 reordena el flujo a revalidación -> autorización/auditoría -> `AUDIT_PREPARE` durable -> consumo one-shot. Un fallo inyectado de `AUDIT_PREPARE` no consume la preparación. B2 queda RESUELTO_EN_CODIGO_AISLADO; continúa pendiente integrar B1+B2 juntos y resolver binding completo de parámetros/autorización antes de runtime.
+
+## Avance B3
+El dispatch aislado de Execute ahora puede exigir `PreparationStore` actor-bound antes de auditoría/consumo. `parameters_hash` cubre la preparación completa, `subject_id`, confirmación y SHA-256 del nonce (no el nonce en claro). Las pruebas rechazan sustitución de actor antes del consumo. Execute sigue fuera del runtime productivo.

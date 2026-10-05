@@ -1,6 +1,7 @@
 """Audited non-destructive dispatch gate for maintenance.logs.execute."""
 from __future__ import annotations
 from datetime import datetime,timedelta,timezone
+from dataclasses import asdict
 import hashlib
 from typing import Any
 from uuid import UUID,uuid5
@@ -8,6 +9,7 @@ from worker.audit.ledger import AuditLedger,LedgerEvent,canonical_json
 from worker.operations.log_retention_prepare import LogRetentionPreparation
 from worker.operations.log_retention_execute import validate_execution_gate,LogRetentionExecuteError
 from worker.operations.log_retention_consumption import PreparationConsumptionStore
+from worker.operations.log_retention_preparation_store import PreparationStore,PreparationStoreError
 
 OPERATION=ROLE="maintenance.logs.execute"; TARGET={"type":"traccar-log-directory","id":"/opt/traccar/logs"}
 POLICY_ACTOR={"subject_id":"rbac:maintenance.logs.execute","actor_type":"policy"}; WORKER_ACTOR={"subject_id":"traccar-manager-worker","actor_type":"service"}
@@ -24,10 +26,14 @@ def _a(ledger,e,kind='append'):
  except MaintenanceExecuteError:raise
  except Exception: raise MaintenanceExecuteError('AUDIT_UNAVAILABLE') from None
 
-def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,...],preparation:LogRetentionPreparation,confirmation:str,nonce:str,consumption_store:PreparationConsumptionStore,preview_provider=None,now=None)->dict[str,Any]:
+def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,...],preparation:LogRetentionPreparation,confirmation:str,nonce:str,consumption_store:PreparationConsumptionStore,preparation_store:PreparationStore|None=None,preview_provider=None,now=None)->dict[str,Any]:
  if not isinstance(request_id,str) or not request_id or not isinstance(subject_id,str) or not subject_id:raise MaintenanceExecuteError('INVALID_REQUEST')
  if not isinstance(roles,tuple) or ROLE not in roles:raise MaintenanceExecuteError('FORBIDDEN')
- payload={"preparation_id":getattr(preparation,'preparation_id',None),"confirmation":confirmation};ph=_d(payload);j='job-'+str(uuid5(_NAMESPACE,'job:'+request_id));human={"subject_id":subject_id,"actor_type":"human","roles":[ROLE]}
+ if preparation_store is not None:
+  try: preparation_store.verify(preparation,subject_id=subject_id)
+  except PreparationStoreError as exc: raise MaintenanceExecuteError(str(exc)) from None
+ nonce_hash=hashlib.sha256(nonce.encode("utf-8")).hexdigest() if isinstance(nonce,str) else "INVALID"
+ payload={"preparation":asdict(preparation) if isinstance(preparation,LogRetentionPreparation) else None,"subject_id":subject_id,"confirmation":confirmation,"nonce_hash":nonce_hash};ph=_d(payload);j='job-'+str(uuid5(_NAMESPACE,'job:'+request_id));human={"subject_id":subject_id,"actor_type":"human","roles":[ROLE]}
  for et,phase,status in (("REQUEST_RECEIVED","REQUEST","RECEIVED"),("VALIDATION_PASSED","VALIDATION","PASSED"),("PREVIEW_STARTED","PREVIEW","STARTED")):_a(ledger,_event(request_id,j,subject_id,ph,et,phase,human,status=status))
  kwargs={"confirmation":confirmation,"nonce":nonce,"consumption_store":None,"consume":False}
  if preview_provider is not None:kwargs['preview_provider']=preview_provider
