@@ -42,3 +42,9 @@ Este incremento **no está desplegado en producción y no expone todavía una ru
 El Manager incorpora el puente `Manager -> UDS -> Worker` para `maintenance.logs.preview`, verifica el recibo contra el ledger compartido antes de devolver datos y expone `GET /api/maintenance/logs/preview` únicamente a sesiones con el rol correspondiente. El dashboard añade un Centro de mantenimiento con retención configurable (30–3650 días), cantidad de candidatos, bytes potencialmente recuperables y listado de archivos candidatos.
 
 La interfaz usa exclusivamente nodos de texto para representar nombres/fechas devueltos por el Worker y conserva explícitamente `destructive_action_performed=false`. **No existe endpoint, botón ni operación de borrado en este incremento.** Este código permanece en la rama Phase 4 y aún no está desplegado en producción.
+
+## Incremento 4 — Validación HTTP/UI aislada
+
+La ruta HTTP y la UI fueron ejercitadas en un `ManagerHTTPServer` efímero ligado exclusivamente a `127.0.0.1`, con sesión y proveedor ficticios. Se validó HTTP 200 para una sesión con `maintenance.logs.preview`, rechazo 401 sin sesión, rechazo de parámetros fuera de política y de cualquier intento de introducir una ruta arbitraria, además de 405 para POST. La página real contiene el Centro de mantenimiento y no contiene control de eliminación.
+
+Esta validación no accedió a MySQL, a la base de datos de Traccar ni ejecutó limpieza. No requiere ni implica despliegue del código Phase 4 en los servicios persistentes.
