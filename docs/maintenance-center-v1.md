@@ -198,3 +198,6 @@ Manager expone `POST /api/maintenance/logs/execute` sólo a sesiones con `mainte
 
 ## Incremento 46 - Rol EXECUTE habilitado en AuthStore
 Se añadió `maintenance.logs.execute` a la allowlist estricta de roles del AuthStore. Esto permite emitir sesiones autorizadas explícitamente para el endpoint EXECUTE sin ampliar permisos implícitos. Suite Auth+Maintenance+Web bajo usuario web: 29 tests OK, 1 skipped. El endpoint permanece no destructivo y exige FEATURE_GATE_BLOCKED.
+
+## Incremento 47 - Verificación de asignación productiva EXECUTE
+La allowlist de AuthStore soporta `maintenance.logs.execute`, pero el store root-owned productivo aún no asigna ese rol a ninguna cuenta. Por diseño fail-closed no se altera silenciosamente una cuenta humana ni se fabrican credenciales para una prueba. El transporte HTTP/UDS permanece desplegado y no destructivo; la E2E autenticada queda bloqueada hasta una asignación explícita del rol a una identidad autorizada.
