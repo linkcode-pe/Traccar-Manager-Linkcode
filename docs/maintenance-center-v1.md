@@ -160,3 +160,6 @@ Se añadió el primitivo HMAC-SHA256 que autentica la huella canónica del plan 
 
 ## Incremento 34 - Secreto HMAC aislado como systemd credential
 Se añadió un cargador fail-closed que sólo acepta `retention-plan-hmac.key` desde `$CREDENTIALS_DIRECTORY`. La unidad Boundary recibe la clave mediante `LoadCredential=`; no se expone por variables de entorno, Manager ni Worker. La fuente persistente queda root-only y systemd materializa una copia privada para el servicio. Producción continúa `DENY_PRODUCTION`.
+
+## Incremento 35 - Emisión y verificación HMAC dentro de Boundary
+Retention Boundary carga su credencial systemd y expone dos acciones locales todavía no destructivas: `ISSUE_AUTH` firma el plan exacto y `VERIFY` exige el token antes de revalidar. Alterar ID, candidatos o retención invalida el token (`DENIED_BY_PLAN_AUTH`). Incluso un token válido termina en `DENIED_BY_PRODUCTION_GATE`; no existe mutación productiva en este protocolo.
