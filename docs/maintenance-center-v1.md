@@ -142,3 +142,6 @@ Se implementó el primer ejecutor que realiza una mutación real, pero contiene 
 
 ## Incremento 28 - Auditoría durable del ejecutor sandbox
 Cada ejecución destructiva de sandbox genera ahora evidencia JSONL durable antes de considerarse validada: `preparation_id`, candidatos solicitados, cantidad revalidada, archivos eliminados, evidencia `active_log_included=false`, `production_access=false`, timestamp, enlace al hash previo y hash del registro. La escritura usa `O_NOFOLLOW`, append y `fsync`. El audit path está restringido al sandbox. Producción continúa sin importar/invocar este ejecutor.
+
+## Incremento 29 - Fallo parcial fail-stop y evidencia exacta
+El ejecutor sandbox ahora registra resultado por archivo. Ante el primer `unlink` fallido se detiene: separa `deleted_names`, `failed_names` y `not_attempted_names`, devuelve `SANDBOX_PARTIAL_FAILURE` y persiste exactamente el mismo resultado en la auditoría durable. Nunca declara éxito total después de un fallo. Producción permanece `DENY_PRODUCTION`.
