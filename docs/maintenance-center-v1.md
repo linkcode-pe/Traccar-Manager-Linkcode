@@ -82,3 +82,6 @@ El helper sandbox ejecuta preflight completo antes de mutar, revalida identidad 
 
 ## Incremento 11 - Security review Execute
 Revision integral registrada en `docs/m2-execute-security-review-2026-10-05.md`. Resultado: **NO-GO** para runtime destructivo. Se identificaron cuatro bloqueantes: Preparation sin prueba durable de emision, consumo anterior a AUDIT_PREPARE, parameters_hash incompleto y authorization sintetica. El helper permanece sandbox-only y Execute sigue feature-gated.
+
+## Incremento 11 - PreparationStore durable ligado al actor
+Se implementó un store append-only para demostrar que una preparación fue emitida por el sistema y pertenece al actor que intenta usarla. El binding cubre `subject_id` y todos los campos de `LogRetentionPreparation`, incluido nonce, hashes, TTL y conteos. El archivo usa lock, `fsync`, modo 0600 y `O_NOFOLLOW`; preparaciones no emitidas, actor distinto, contenido manipulado o store symlink fallan cerrado. Este store aún no está conectado al runtime/producción; resuelve el núcleo del bloqueante B1 antes de modificar el orden B2.

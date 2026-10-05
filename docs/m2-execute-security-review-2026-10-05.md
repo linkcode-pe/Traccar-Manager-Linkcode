@@ -55,3 +55,6 @@ No debe ser alcanzable desde parser/runtime productivo. Antes de promover el hel
 6. Diseñar receipt durable de SUCCESS/PARTIAL_DELETE/FAILED con lista exacta de efectos.
 7. Hacer threat tests de forge/replay/crash/audit failure/path swap.
 8. Solo despues realizar una nueva revision GO/NO-GO. Ningun paso implica todavia borrar logs reales.
+
+## Avance B1
+Incremento 11 implementa y prueba `PreparationStore` durable actor-bound. B1 queda RESUELTO_EN_CODIGO_AISLADO, pendiente de integración posterior; B2 continúa bloqueante.
