@@ -48,8 +48,8 @@ PAGE = """<!doctype html>
     :root{color-scheme:dark;--bg:#080d18;--card:#121c2d;--card2:#0f1726;--border:rgba(164,185,220,.14);--text:#edf3ff;--muted:#91a0b9;--cyan:#54d7e8;--green:#57d49a;--amber:#f4bd61;--danger:#ff8585}
     *{box-sizing:border-box}html{min-width:320px;background:var(--bg)}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 12% 0%,rgba(34,92,132,.22),transparent 38%),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
     main{width:min(1120px,calc(100% - 48px));margin:auto;padding:32px 0 28px}.brand{display:flex;align-items:center;gap:15px;margin-bottom:28px}.mark{display:grid;place-items:center;width:52px;height:52px;border:1px solid rgba(84,215,232,.35);border-radius:15px;background:rgba(84,215,232,.1);color:var(--cyan);font-size:23px;font-weight:800}.brand-copy{min-width:0}.eyebrow{margin:0 0 5px;color:var(--cyan);font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}h1{margin:0;font-size:clamp(22px,3vw,29px);line-height:1.15}h2{margin:0 0 12px;font-size:19px;letter-spacing:-.02em}h3{margin:0 0 7px;font-size:16px}p{line-height:1.5}.muted{color:var(--muted);margin:5px 0 0;font-size:13px}.status{color:var(--amber);font-weight:700}.notice,.card{margin-top:12px;padding:17px 18px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(150deg,#131d2f,#0e1523)}
-    #dashboard-panel{display:grid;gap:13px}.dashboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.card{position:relative;overflow:hidden}.card:after{position:absolute;top:-55px;right:-45px;width:125px;height:125px;border:1px solid var(--cyan);border-radius:50%;content:"";opacity:.06;pointer-events:none}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0 18px;padding:11px 14px;border:1px solid var(--border);border-radius:11px;background:rgba(17,26,43,.75)}label{display:block;margin:15px 0 6px;color:#cbd5e5;font-size:11px;font-weight:700}input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:#0b1321;color:var(--text);font:inherit;outline:none}input:focus{border-color:rgba(84,215,232,.55);box-shadow:0 0 0 3px rgba(84,215,232,.08)}button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:13px;padding:0 15px;border:1px solid rgba(84,215,232,.32);border-radius:11px;background:rgba(84,215,232,.1);color:var(--cyan);font:inherit;font-weight:700;cursor:pointer}button:hover{background:rgba(84,215,232,.18)}button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}button:disabled{opacity:.55;cursor:wait}.secondary{margin-top:0;border-color:var(--border);background:rgba(145,160,185,.08);color:#cbd5e5}.error{color:#ffc1c1}.notice.error{border-color:rgba(255,112,112,.3);background:rgba(255,112,112,.08)}#maintenance-candidates{margin:12px 0 0;padding-left:20px;color:#d3dced;font-size:12px}#maintenance-candidates li{padding:5px 0;border-bottom:1px solid rgba(164,185,220,.08)}[hidden]{display:none!important}noscript{display:block;margin-top:15px;color:#ffc1c1}
-    @media(max-width:720px){main{width:calc(100% - 22px);padding:17px 0}.brand{margin-bottom:20px}.mark{width:44px;height:44px}.dashboard-grid{grid-template-columns:1fr}.toolbar{align-items:flex-start}.card{padding:14px}.notice{padding:13px}}
+    #dashboard-panel{display:grid;gap:13px}.dashboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.card{position:relative;overflow:hidden}.card:after{position:absolute;top:-55px;right:-45px;width:125px;height:125px;border:1px solid var(--cyan);border-radius:50%;content:"";opacity:.06;pointer-events:none}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0 18px;padding:11px 14px;border:1px solid var(--border);border-radius:11px;background:rgba(17,26,43,.75)}label{display:block;margin:15px 0 6px;color:#cbd5e5;font-size:11px;font-weight:700}input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:#0b1321;color:var(--text);font:inherit;outline:none}input:focus{border-color:rgba(84,215,232,.55);box-shadow:0 0 0 3px rgba(84,215,232,.08)}button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:13px;padding:0 15px;border:1px solid rgba(84,215,232,.32);border-radius:11px;background:rgba(84,215,232,.1);color:var(--cyan);font:inherit;font-weight:700;cursor:pointer}button:hover{background:rgba(84,215,232,.18)}button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}button:disabled{opacity:.55;cursor:wait}.secondary{margin-top:0;border-color:var(--border);background:rgba(145,160,185,.08);color:#cbd5e5}.error{color:#ffc1c1}.notice.error{border-color:rgba(255,112,112,.3);background:rgba(255,112,112,.08)}.maintenance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:13px}.maintenance-summary div{padding:10px;border:1px solid var(--border);border-radius:11px;background:rgba(17,26,43,.75)}.maintenance-summary span,.maintenance-summary strong{display:block}.maintenance-summary span{color:var(--muted);font-size:10px}.maintenance-summary strong{margin-top:3px;font-size:15px;font-variant-numeric:tabular-nums}#maintenance-candidates{margin:12px 0 0;padding-left:20px;color:#d3dced;font-size:12px}#maintenance-candidates li{padding:5px 0;border-bottom:1px solid rgba(164,185,220,.08)}[hidden]{display:none!important}noscript{display:block;margin-top:15px;color:#ffc1c1}
+    @media(max-width:720px){main{width:calc(100% - 22px);padding:17px 0}.brand{margin-bottom:20px}.mark{width:44px;height:44px}.dashboard-grid{grid-template-columns:1fr}.maintenance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{align-items:flex-start}.card{padding:14px}.notice{padding:13px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
   </style>
   <script src="/manager/app.js" defer></script>
@@ -93,6 +93,13 @@ PAGE = """<!doctype html>
         <button id="preview-logs-button" type="button">Analizar logs</button>
         <p id="maintenance-state" class="status">Sin análisis</p>
         <p id="maintenance-detail" class="muted">No se ha ejecutado ninguna vista previa.</p>
+        <div id="maintenance-summary" class="maintenance-summary" hidden>
+          <div><span>Históricos</span><strong id="maintenance-history-count">—</strong></div>
+          <div><span>Tamaño históricos</span><strong id="maintenance-history-bytes">—</strong></div>
+          <div><span>Candidatos</span><strong id="maintenance-candidate-count">—</strong></div>
+          <div><span>Recuperable</span><strong id="maintenance-candidate-bytes">—</strong></div>
+        </div>
+        <p id="maintenance-range" class="muted" hidden></p>
         <ul id="maintenance-candidates"></ul>
         <p id="maintenance-error" class="error" role="alert" hidden></p>
       </article>
@@ -129,6 +136,12 @@ APP_JS = r"""(() => {
   const maintenanceState = byId("maintenance-state");
   const maintenanceDetail = byId("maintenance-detail");
   const maintenanceCandidates = byId("maintenance-candidates");
+  const maintenanceSummary = byId("maintenance-summary");
+  const maintenanceHistoryCount = byId("maintenance-history-count");
+  const maintenanceHistoryBytes = byId("maintenance-history-bytes");
+  const maintenanceCandidateCount = byId("maintenance-candidate-count");
+  const maintenanceCandidateBytes = byId("maintenance-candidate-bytes");
+  const maintenanceRange = byId("maintenance-range");
   const maintenanceError = byId("maintenance-error");
 
   function showLogin(message) {
@@ -190,7 +203,7 @@ APP_JS = r"""(() => {
   }
 
   async function previewLogs() {
-    maintenanceError.hidden=true; maintenanceCandidates.replaceChildren();
+    maintenanceError.hidden=true; maintenanceCandidates.replaceChildren(); maintenanceSummary.hidden=true; maintenanceRange.hidden=true;
     const days=Number(retentionDays.value);
     if (!Number.isInteger(days) || days < 30 || days > 3650) {
       maintenanceError.textContent="La retención debe estar entre 30 y 3650 días."; maintenanceError.hidden=false; return;
@@ -205,7 +218,14 @@ APP_JS = r"""(() => {
       const data=await response.json(), p=data && data.preview;
       if (!data || data.schema_version!==1 || data.request_id!==requestId || !p || p.destructive_action_performed!==false || p.active_log_protected!==true || !Array.isArray(p.candidates)) throw new Error("maintenance_invalid");
       maintenanceState.textContent=p.candidate_count+" archivo(s) candidato(s)";
-      maintenanceDetail.textContent="Espacio recuperable: "+formatBytes(p.candidate_bytes)+" · Corte UTC: "+p.cutoff_utc+" · log activo protegido";
+      maintenanceDetail.textContent="Corte UTC: "+p.cutoff_utc+" · log activo protegido · solo vista previa";
+      maintenanceHistoryCount.textContent=String(p.historical_count);
+      maintenanceHistoryBytes.textContent=formatBytes(p.historical_bytes);
+      maintenanceCandidateCount.textContent=String(p.candidate_count);
+      maintenanceCandidateBytes.textContent=formatBytes(p.candidate_bytes);
+      maintenanceSummary.hidden=false;
+      maintenanceRange.textContent=p.candidate_count ? "Rango candidato: "+p.oldest_candidate_utc+" → "+p.newest_candidate_utc : "No existen archivos fuera de la retención seleccionada.";
+      maintenanceRange.hidden=false;
       p.candidates.forEach((item)=>{ const li=document.createElement("li"); li.textContent=item.name+" — "+formatBytes(item.size_bytes)+" — "+item.mtime_utc; maintenanceCandidates.appendChild(li); });
     } catch (_error) { maintenanceState.textContent="Vista previa no disponible"; maintenanceDetail.textContent="No se realizó ninguna acción destructiva."; maintenanceError.textContent="No se pudo analizar los logs."; maintenanceError.hidden=false; }
     finally { previewLogsButton.disabled=false; }

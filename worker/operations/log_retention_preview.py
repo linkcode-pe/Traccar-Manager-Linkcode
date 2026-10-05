@@ -40,6 +40,10 @@ class LogRetentionPreview:
     candidate_count: int
     candidate_bytes: int
     candidates: tuple[LogCandidate, ...]
+    historical_count: int = 0
+    historical_bytes: int = 0
+    oldest_candidate_utc: str | None = None
+    newest_candidate_utc: str | None = None
     active_log_protected: bool = True
     destructive_action_performed: bool = False
 
@@ -74,6 +78,8 @@ def preview_log_retention(
     cutoff = current.astimezone(timezone.utc) - timedelta(days=retention_days)
 
     candidates: list[LogCandidate] = []
+    historical_count = 0
+    historical_bytes = 0
     for entry in root.iterdir():
         match = _HISTORICAL_RE.fullmatch(entry.name)
         if match is None:
@@ -82,6 +88,8 @@ def preview_log_retention(
             continue
         # The filename is allowlisted, and the active unsuffixed log can never match.
         stat_result = entry.stat()
+        historical_count += 1
+        historical_bytes += stat_result.st_size
         mtime = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
         if mtime >= cutoff:
             continue
@@ -93,11 +101,16 @@ def preview_log_retention(
         ))
 
     candidates.sort(key=lambda item: item.name)
+    candidate_mtimes = [item.mtime_utc for item in candidates]
     return LogRetentionPreview(
         log_dir=str(root),
         retention_days=retention_days,
         cutoff_utc=_iso_utc(cutoff),
         candidate_count=len(candidates),
         candidate_bytes=sum(item.size_bytes for item in candidates),
+        historical_count=historical_count,
+        historical_bytes=historical_bytes,
+        oldest_candidate_utc=min(candidate_mtimes) if candidate_mtimes else None,
+        newest_candidate_utc=max(candidate_mtimes) if candidate_mtimes else None,
         candidates=tuple(candidates),
     )

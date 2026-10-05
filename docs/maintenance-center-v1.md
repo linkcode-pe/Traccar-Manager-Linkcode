@@ -52,3 +52,9 @@ Esta validación no accedió a MySQL, a la base de datos de Traccar ni ejecutó 
 ## Regla visual oficial — continuidad con `/panel`
 
 La interfaz de Traccar Manager adopta como referencia visual oficial el `/panel` original del servidor: fondo azul-negro, tarjetas oscuras con bordes discretos, acento cian, estados semánticos, radios moderados, jerarquía compacta y diseño responsive. La referencia se traduce a componentes propios del Manager; no se copia la lógica PHP ni el acceso directo de `/panel` a MySQL. Esta regla aplica a login, dashboard, mantenimiento y módulos futuros para conservar una identidad única.
+
+## Incremento 5 — Preview operativo enriquecido
+
+El Preview de logs incorpora métricas de inventario no destructivas: cantidad y tamaño total de logs históricos allowlisted, cantidad y bytes candidatos y rango temporal de los candidatos. El dashboard presenta estas métricas en tarjetas siguiendo el sistema visual derivado de `/panel`. El contrato conserva `active_log_protected=true` y `destructive_action_performed=false`; no se incorpora endpoint, permiso ni botón de eliminación.
+
+La futura limpieza real queda deliberadamente fuera de este incremento. Antes de implementarla deberá definirse un protocolo independiente de preparación/confirmación que vincule una autorización efímera a un `preview_id` inmutable y vuelva a validar los archivos inmediatamente antes de cualquier mutación.
