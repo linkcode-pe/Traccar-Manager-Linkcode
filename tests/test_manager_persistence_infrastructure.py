@@ -140,7 +140,7 @@ def write_migration(directory, version, name, sql):
 
 class PersistenceMigrationTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="tm-manager-test-", dir=str(Path(__file__).parent))
+        self.temp = tempfile.TemporaryDirectory(prefix="tm-manager-test-")
         self.root = Path(self.temp.name)
         self.migrations = self.root / "migrations"
         self.migrations.mkdir()
