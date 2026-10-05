@@ -130,3 +130,6 @@ Cuando Preview devuelve cero candidatos, Manager descarta `lastPreview`, oculta 
 
 ## Incremento 25 - Revalidación final privilegiada preparada
 Se añadió una revalidación read-only destinada exclusivamente a Retention Boundary antes de cualquier futura mutación: nombre exacto `tracker-server.log.YYYYMMDD`, fecha del nombre realmente expirada según retención, apertura relativa al directorio con `O_NOFOLLOW`, archivo regular y rechazo de symlinks/traversal/log activo. Todavía no está conectada a una ruta destructiva y Boundary permanece `DENY_PRODUCTION`.
+
+## Hotfix - Dashboard UDS timeout budget
+El dashboard auditado puede completar correctamente después de más de 8 segundos bajo carga; se observaron finalizaciones Worker válidas inmediatamente después de que Manager ya había agotado su timeout. El presupuesto local UDS se eleva a 15 segundos (acotado), manteniendo fail-closed y sin retries. Esto evita falsos `PROVIDER_UNAVAILABLE` sin relajar validación, identidad, auditoría ni permisos.
