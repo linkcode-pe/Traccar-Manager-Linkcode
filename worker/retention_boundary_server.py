@@ -1,6 +1,7 @@
 """Privileged boundary protocol. Production mutation remains hard denied."""
 from __future__ import annotations
 import json,os,socket,struct,pwd
+from datetime import datetime,timezone
 from worker.operations.log_retention_boundary_contract import BoundaryContract,validate_request
 from worker.operations.log_retention_boundary_revalidate import revalidate
 from worker.operations.log_retention_boundary_credential import load_hmac_key
@@ -26,11 +27,21 @@ def handle(raw:bytes,*,peer_authorized:bool=False)->bytes:
    if not isinstance(req,dict) or not isinstance(req.get('names'),list) or not validate_request(req.get('operation'),req['names']): raise ValueError()
    action=req.get('action','VERIFY')
    if action=='ISSUE_AUTH':
-    if set(req)!={'action','operation','preparation_id','names','retention_days'}:raise ValueError()
-    token=sign(load_hmac_key(),req['preparation_id'],req['names'],req['retention_days'])
+    if set(req)!={'action','operation','preparation_id','names','retention_days','issued_at_utc','expires_at_utc','preparation_binding_hash'}:raise ValueError()
+    try:
+     issued=datetime.fromisoformat(req['issued_at_utc'].replace('Z','+00:00'));expires=datetime.fromisoformat(req['expires_at_utc'].replace('Z','+00:00'));now=datetime.now(timezone.utc)
+    except Exception:raise ValueError()
+    if issued.tzinfo is None or expires.tzinfo is None or not (issued<=now<expires) or (expires-issued).total_seconds()>300:raise PermissionError('PREPARATION_EXPIRED')
+    if not isinstance(req['preparation_binding_hash'],str) or len(req['preparation_binding_hash'])!=64:raise ValueError()
+    token=sign(load_hmac_key(),req['preparation_id']+':'+req['preparation_binding_hash']+':'+req['expires_at_utc'],req['names'],req['retention_days'])
     out={'status':'AUTH_ISSUED','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'plan_auth':token};return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
-   if set(req)!={'action','operation','preparation_id','names','retention_days','plan_auth'} or action!='VERIFY':raise ValueError()
-   if not verify(load_hmac_key(),req['plan_auth'],req['preparation_id'],req['names'],req['retention_days']):
+   if set(req)!={'action','operation','preparation_id','names','retention_days','issued_at_utc','expires_at_utc','preparation_binding_hash','plan_auth'} or action!='VERIFY':raise ValueError()
+   try: expires=datetime.fromisoformat(req['expires_at_utc'].replace('Z','+00:00'))
+   except Exception:raise ValueError()
+   if expires.tzinfo is None or datetime.now(timezone.utc)>=expires:
+    out={'status':'DENIED_BY_EXPIRED_PREPARATION','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':False};return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
+   signed_id=req['preparation_id']+':'+req['preparation_binding_hash']+':'+req['expires_at_utc']
+   if not verify(load_hmac_key(),req['plan_auth'],signed_id,req['names'],req['retention_days']):
     out={'status':'DENIED_BY_PLAN_AUTH','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':False};return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
    checks=[revalidate('/opt/traccar/logs',n,req['retention_days']) for n in req['names']]
    if not all(x.eligible for x in checks):

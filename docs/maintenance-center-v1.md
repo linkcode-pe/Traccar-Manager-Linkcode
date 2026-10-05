@@ -166,3 +166,6 @@ Retention Boundary carga su credencial systemd y expone dos acciones locales tod
 
 ## Incremento 36 - Autorización por identidad Unix del peer
 Boundary valida `SO_PEERCRED` en cada conexión sensible y sólo acepta `ISSUE_AUTH`/`VERIFY` cuando el UID real corresponde a `traccar-manager-worker`. El socket deja de ser world-writable: se publica `0660` con grupo `traccar-manager-worker`. La unidad Boundary recibe ese grupo como suplementario exclusivamente para poder asignarlo al socket. Manager/UI queda fuera del canal criptográfico. Producción continúa `DENY_PRODUCTION`.
+
+## Incremento 37 - HMAC vinculado a preparación durable y TTL
+`ISSUE_AUTH` ya no firma sólo ID+candidatos+retención: exige `preparation_binding_hash`, `issued_at_utc` y `expires_at_utc`, limita la vigencia a 300 segundos y rechaza preparaciones expiradas. El token incorpora binding+expiración, por lo que cambiar el registro durable o extender/reutilizar su TTL invalida `VERIFY`. SO_PEERCRED y socket 0660 permanecen activos; producción sigue `DENY_PRODUCTION`.
