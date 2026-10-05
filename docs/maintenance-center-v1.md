@@ -67,3 +67,6 @@ Este incremento **no expone todavía endpoint HTTP/UDS, no concede `maintenance.
 
 ## Incremento 6 — Gate de Execute sin mutación
 Se añadió el contrato puro `maintenance.logs.execute` en estado de diseño/gate, todavía no expuesto por HTTP/UDS ni habilitado en producción. Exige preparación válida, frase explícita `CONFIRMAR LIMPIEZA`, nonce exacto, TTL vigente y revalidación completa del Preview inmediatamente antes de ejecutar. El resultado actual fija `execution_enabled=false`, `authorization_consumed=false` y `destructive_action_performed=false`; no existe llamada a unlink/remove/rm. El próximo gate deberá resolver persistencia/consumo atómico de la preparación y autorización antes de incorporar cualquier mutación real.
+
+## Incremento 7 — Consumo durable de un solo uso
+El gate Execute incorpora un `PreparationConsumptionStore` append-only con lock exclusivo `flock`, binding hash de todos los campos sensibles de la preparación y `fsync` antes de devolver éxito. Una preparación consumida vuelve a fallar con `PREPARATION_ALREADY_CONSUMED`; una colisión del mismo `preparation_id` con binding distinto falla cerrada. Validaciones fallidas no consumen la preparación. Este store todavía se prueba únicamente en fixtures temporales: no está conectado a HTTP/UDS ni a producción y el gate mantiene `execution_enabled=false` y `destructive_action_performed=false`.
