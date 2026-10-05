@@ -90,5 +90,7 @@ Shell web, phpMyAdmin/SQL libre, filesystem arbitrario, administración general 
 - No se crearán nuevos scripts autónomos de administración fuera de Manager/Worker.
 - Los artefactos legacy pueden conservarse temporalmente solo como rollback hasta completar su retirada; no son autoridad ni runtime activo.
 
+La auditoria de consolidacion esta en `docs/panel-to-manager-audit-2026-10-05.md`. El legado no se porta literalmente; cada capacidad entra por su modulo Manager y sus gates.
+
 ## Estado de referencia — 2026-10-05
 Core seguro activo. Phase 4 está en `phase4/maintenance-center`. Preview de logs está desplegado, no destructivo y con métricas estilo `/panel`. M2 `maintenance.logs.prepare` ya tiene core y gate Worker/RBAC/auditoría en desarrollo; todavía no existe borrado real. Siguiente frontera: puente Manager/UI de preparación, manteniendo `maintenance.logs.execute` inexistente.

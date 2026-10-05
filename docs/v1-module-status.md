@@ -18,3 +18,6 @@ Actualizar con cada cambio real. Nunca marcar ENABLED por existir solo UI, docum
 
 ## Consolidación de runtime
 Manager/Worker son el único plano de control. Panel legacy y timers destructivos legacy: DISABLED. Toda automatización futura debe entrar por contratos Manager/Worker auditados.
+
+## Auditoria Panel -> Manager
+Panel runtime RETIRABLE; auth/status REEMPLAZADOS; visual MIGRADO; DB/disco PENDIENTES; logs REEMPLAZADO_PARCIAL por M2; retencion DB PENDIENTE_CRITICO en M3. Ver `docs/panel-to-manager-audit-2026-10-05.md`.
