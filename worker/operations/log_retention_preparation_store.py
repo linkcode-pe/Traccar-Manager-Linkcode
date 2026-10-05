@@ -30,6 +30,7 @@ class PreparationStore:
   except PreparationStoreError:raise
   except OSError:raise PreparationStoreError('PREPARATION_STORE_UNAVAILABLE') from None
   finally:os.close(fd)
+  # Publish a root-owned/shared-readable attestation is handled by deployment boundary; store remains authoritative.
   return digest
  def verify(self,p:LogRetentionPreparation,*,subject_id:str):
   digest=self._binding(p,subject_id)

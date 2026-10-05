@@ -169,3 +169,6 @@ Boundary valida `SO_PEERCRED` en cada conexión sensible y sólo acepta `ISSUE_A
 
 ## Incremento 37 - HMAC vinculado a preparación durable y TTL
 `ISSUE_AUTH` ya no firma sólo ID+candidatos+retención: exige `preparation_binding_hash`, `issued_at_utc` y `expires_at_utc`, limita la vigencia a 300 segundos y rechaza preparaciones expiradas. El token incorpora binding+expiración, por lo que cambiar el registro durable o extender/reutilizar su TTL invalida `VERIFY`. SO_PEERCRED y socket 0660 permanecen activos; producción sigue `DENY_PRODUCTION`.
+
+## Incremento 38 - Evidencia durable de PREPARE verificada por Boundary
+Antes de `ISSUE_AUTH`, Boundary exige encontrar `preparation_id + binding_hash` exactos en una vista de atestaciones durable y sólo lectura. Un ID inexistente o binding alterado no puede obtener HMAC. El store autoritativo de Worker conserva actor+preparación; Boundary sólo recibe la evidencia mínima necesaria. TTL, SO_PEERCRED, socket 0660 y `DENY_PRODUCTION` permanecen activos.
