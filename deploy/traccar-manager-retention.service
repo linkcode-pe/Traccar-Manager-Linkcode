@@ -22,5 +22,6 @@ UMask=0027
 RuntimeDirectory=traccar-manager-retention
 RuntimeDirectoryMode=0750
 Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/traccar-manager
 [Install]
 WantedBy=multi-user.target
