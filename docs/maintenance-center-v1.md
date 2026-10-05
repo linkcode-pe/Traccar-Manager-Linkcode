@@ -106,3 +106,6 @@ PREPARE ahora, después de persistir y verificar el binding actor/preparación, 
 
 ## Incremento 17 - Contrato de frontera destructiva aislada
 Se formalizó la frontera destructiva como componente sandbox-only: `production_access=false`, raíz productiva `/opt/traccar/logs` hard-denied, allowlist estricta `tracker-server.log.YYYYMMDD` y log activo denegado. La UI publica este estado de arquitectura sin desplegar el helper destructivo ni habilitar Execute. El próximo gate deberá convertir este contrato en un servicio privilegiado separado con identidad/permisos mínimos antes de cualquier acceso productivo.
+
+## Incremento 18 - Contrato del futuro servicio privilegiado
+Se añadió un contrato puro, sin side effects, para la futura frontera privilegiada. Declara `DENY_PRODUCTION`, identidad separada obligatoria, sin red ni shell, una sola operación `DELETE_EXPIRED_HISTORICAL_LOGS`, nombres históricos allowlisted y log activo denegado. No se creó usuario privilegiado, socket, sudoers, capability ni permiso sobre `/opt/traccar/logs`; por diseño esta fase sólo valida el protocolo antes de crear la identidad del servicio.
