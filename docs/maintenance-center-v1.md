@@ -175,3 +175,7 @@ Antes de `ISSUE_AUTH`, Boundary exige encontrar `preparation_id + binding_hash` 
 
 ## Incremento 39 - Publicación automática de atestaciones PREPARE
 Tras persistir y verificar una preparación, Worker publica `preparation_id + binding_hash` en un spool append-only bajo `/run/traccar-manager`. Un helper root independiente copia sólo registros válidos y nuevos hacia la vista root-owned/Boundary-readable; Worker no puede escribir la vista consumida por Boundary ni sobrescribir registros previos. El flujo destructivo continúa bloqueado.
+
+
+## Incremento 40 - Sync root E2E de atestaciones activo
+Se instaló `traccar-manager-attestation-sync.path/service`: observa el spool Worker, valida registros mínimos y sólo añade pares nuevos a `/var/lib/traccar-manager-retention/preparations.jsonl`. Verificación productiva: Worker crea spool 0600; helper root sincroniza; Worker no puede escribir la vista; Boundary sí puede leerla. Traccar permanece sin reinicio y producción sigue `DENY_PRODUCTION`.
