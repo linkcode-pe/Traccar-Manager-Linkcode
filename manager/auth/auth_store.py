@@ -29,7 +29,7 @@ MAX_STORE_BYTES = 64 * 1024
 MAX_PASSWORD_CHARS = 1024
 _USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$")
 _SUBJECT_RE = re.compile(r"^[0-9a-f]{32}$")
-_ALLOWED_ROLES = frozenset({"dashboard.read", "traccar.status.read", "maintenance.logs.preview"})
+_ALLOWED_ROLES = frozenset({"dashboard.read", "traccar.status.read", "maintenance.logs.preview", "maintenance.logs.prepare"})
 
 
 class AuthStoreError(RuntimeError):

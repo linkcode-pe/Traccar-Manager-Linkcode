@@ -84,4 +84,4 @@ Una instalación Traccar compatible puede instalar Manager desde cero, iniciar s
 Shell web, phpMyAdmin/SQL libre, filesystem arbitrario, administración general Linux, modificar binarios de Traccar y destructivas masivas sin preview/confirmación/revalidación/auditoría.
 
 ## Estado de referencia — 2026-10-05
-Core seguro activo. Phase 4 está en `phase4/maintenance-center`. Preview de logs está desplegado, no destructivo y con métricas estilo `/panel`. Siguiente implementación: M2 `maintenance.logs.prepare`, todavía sin borrado real.
+Core seguro activo. Phase 4 está en `phase4/maintenance-center`. Preview de logs está desplegado, no destructivo y con métricas estilo `/panel`. M2 `maintenance.logs.prepare` ya tiene core y gate Worker/RBAC/auditoría en desarrollo; todavía no existe borrado real. Siguiente frontera: puente Manager/UI de preparación, manteniendo `maintenance.logs.execute` inexistente.

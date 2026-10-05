@@ -31,6 +31,10 @@ from worker.maintenance_preview_dispatch import (
     MaintenancePreviewError, OPERATION as MAINTENANCE_OPERATION, ROLE as MAINTENANCE_ROLE,
     TARGET as MAINTENANCE_TARGET, execute as execute_maintenance_preview,
 )
+from worker.maintenance_prepare_dispatch import (
+    MaintenancePrepareError, OPERATION as MAINTENANCE_PREPARE_OPERATION, ROLE as MAINTENANCE_PREPARE_ROLE,
+    TARGET as MAINTENANCE_PREPARE_TARGET, execute as execute_maintenance_prepare,
+)
 
 SOCKET_PATH = "/run/traccar-manager/traccar-status.sock"
 AUDIT_PATH = SHARED_STATUS_AUDIT_PATH
@@ -45,6 +49,7 @@ ROLE = "traccar.status.read"
 PROTOCOL_VERSION = 1
 ENDPOINT = "/api/dashboard/snapshot"
 MAINTENANCE_ENDPOINT = "/api/maintenance/logs/preview"
+MAINTENANCE_PREPARE_ENDPOINT = "/api/maintenance/logs/prepare"
 MAX_MESSAGE_BYTES = 8192
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SUBJECT_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -107,6 +112,11 @@ def _read_message(connection: socket.socket) -> dict[str, object]:
                 or not 30 <= payload["retention_days"] <= 3650
                 or roles != [MAINTENANCE_ROLE]):
             raise RequestError()
+    elif operation == MAINTENANCE_PREPARE_OPERATION:
+        if (not isinstance(payload,dict) or set(payload)!={"retention_days","preview_id"}
+                or type(payload.get("retention_days")) is not int or not 30<=payload["retention_days"]<=3650
+                or not isinstance(payload.get("preview_id"),str) or not payload["preview_id"].startswith("preview-") or len(payload["preview_id"])!=72
+                or roles != [MAINTENANCE_PREPARE_ROLE]): raise RequestError()
     else:
         raise RequestError()
     request_id = message.get("request_id")
@@ -250,6 +260,14 @@ def _perform_maintenance(message: dict[str, object], ledger: AuditLedger) -> dic
     }
 
 
+def _perform_maintenance_prepare(message: dict[str,object], ledger: AuditLedger) -> dict[str,object]:
+    if message.get("operation")!=MAINTENANCE_PREPARE_OPERATION or message.get("roles")!=[MAINTENANCE_PREPARE_ROLE] or not isinstance(message.get("payload"),dict): raise RequestError()
+    try: result=execute_maintenance_prepare(ledger=ledger,request_id=message["request_id"],subject_id=message["subject_id"],roles=(MAINTENANCE_PREPARE_ROLE,),preview_id=message["payload"]["preview_id"],retention_days=message["payload"]["retention_days"])
+    except MaintenancePrepareError: raise RequestError() from None
+    receipt=ledger.finalization_receipt_generic(request_id=message["request_id"],subject_id=message["subject_id"],role=MAINTENANCE_PREPARE_ROLE,endpoint=MAINTENANCE_PREPARE_ENDPOINT,protocol_operation=MAINTENANCE_PREPARE_OPERATION,operation=MAINTENANCE_PREPARE_OPERATION,target=MAINTENANCE_PREPARE_TARGET)
+    if not isinstance(receipt,dict): raise RequestError()
+    return {"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_PREPARE_OPERATION,"request_id":message["request_id"],"outcome":"SUCCEEDED","preview_id":result["preview_id"],"preparation":result["preparation"],"audit_receipt":receipt}
+
 def _respond(connection: socket.socket, request_id: str, *, operation: str = OPERATION, result=None) -> None:
     if result is not None:
         payload = result
@@ -287,7 +305,7 @@ def _check_runtime(worker_uid: int, ipc_gid: int) -> None:
         raise OSError("socket path already exists")
 
 
-def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None) -> None:
+def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: AuditLedger, maintenance_ledger: AuditLedger | None = None, maintenance_prepare_ledger: AuditLedger | None = None) -> None:
     request_id = "invalid"
     operation = OPERATION
     try:
@@ -300,6 +318,8 @@ def _serve_one(connection: socket.socket, web_uid: int, web_gid: int, ledger: Au
             result = _perform_status(message, ledger)
         elif operation == MAINTENANCE_OPERATION and maintenance_ledger is not None:
             result = _perform_maintenance(message, maintenance_ledger)
+        elif operation == MAINTENANCE_PREPARE_OPERATION and maintenance_prepare_ledger is not None:
+            result = _perform_maintenance_prepare(message, maintenance_prepare_ledger)
         else:
             raise RequestError()
         _respond(connection, request_id, operation=operation, result=result)
@@ -341,7 +361,13 @@ def serve_forever() -> None:
         expected_file_mode=0o640, expected_directory_mode=0o750,
         event_metadata={"endpoint": MAINTENANCE_ENDPOINT, "protocol_operation": MAINTENANCE_OPERATION},
     )
-    if not maintenance_ledger.verify().valid:
+    maintenance_prepare_ledger = AuditLedger(
+        AUDIT_PATH, create_mode=0o640,
+        expected_owner_uid=os.geteuid(), expected_group_gid=worker_gid,
+        expected_file_mode=0o640, expected_directory_mode=0o750,
+        event_metadata={"endpoint": MAINTENANCE_PREPARE_ENDPOINT, "protocol_operation": MAINTENANCE_PREPARE_OPERATION},
+    )
+    if not maintenance_ledger.verify().valid or not maintenance_prepare_ledger.verify().valid:
         raise SystemExit(1)
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     listener.settimeout(1.0)
@@ -363,7 +389,7 @@ def serve_forever() -> None:
                     break
                 raise
             with connection:
-                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger)
+                _serve_one(connection, web_uid, web_gid, ledger, maintenance_ledger, maintenance_prepare_ledger)
     finally:
         listener.close()
         try:
