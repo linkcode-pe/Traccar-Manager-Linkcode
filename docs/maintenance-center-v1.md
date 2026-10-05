@@ -76,3 +76,6 @@ Se incorporó `maintenance_execute_dispatch` para probar la cadena de auditoría
 
 ## Incremento 9 — Helper destructivo confinado a sandbox
 Se añadió un helper que sí ejecuta `unlink`, pero únicamente contra un directorio sandbox explícito y nunca contra `/opt/traccar` ni `/opt/traccar/logs`. Revalida raíz, nombre allowlisted, tipo de archivo, tamaño y mtime inmediatamente antes del unlink; usa `dir_fd` y `follow_symlinks=false` para reducir escapes/TOCTOU. Las pruebas usan exclusivamente `TemporaryDirectory`, comprueban preservación del log activo, cambio posterior al Preview, sustitución por symlink, mismatch de raíz y conteos exactos. Este helper NO está conectado al Execute, Dispatcher, UDS, HTTP ni producción.
+
+## Incremento 10 - Semantica de fallo parcial en sandbox
+El helper sandbox ejecuta preflight completo antes de mutar, revalida identidad inmediatamente antes de cada unlink y rechaza candidatos duplicados. Una prueba con hook exclusivo de test fuerza una carrera entre la segunda revalidacion y el segundo unlink: tras una primera eliminacion valida, el helper responde `PARTIAL_DELETE`. No intenta rollback ficticio. El hook no esta conectado a runtime y el hard-deny de `/opt/traccar` permanece.
