@@ -91,3 +91,6 @@ El dispatch Execute fue reordenado para separar revalidación de consumo. Primer
 
 ## Incremento 13 - Binding completo y señalización web segura
 El Execute aislado vincula preparación completa + actor + confirmación + huella del nonce al `parameters_hash` y puede exigir emisión previa actor-bound. La UI de Manager muestra explícitamente el flujo `Analizar -> Preparar -> Ejecutar bloqueado`, para que la preparación visible no se interprete como borrado habilitado. La mejora web no incorpora endpoint Execute ni acción destructiva.
+
+## Incremento 14 - Visibilidad de controles de Execute en Manager
+La UI de producción puede exponer, únicamente después de una preparación auditada válida, los controles ya validados en código aislado: binding de sesión/actor, auditoría durable antes del consumo, autorización one-shot anti-replay y revalidación del plan. Esto es transparencia de estado, no habilitación: el tercer paso permanece `Ejecutar bloqueado` y no existe endpoint destructivo web.
