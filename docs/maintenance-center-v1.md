@@ -172,3 +172,6 @@ Boundary valida `SO_PEERCRED` en cada conexión sensible y sólo acepta `ISSUE_A
 
 ## Incremento 38 - Evidencia durable de PREPARE verificada por Boundary
 Antes de `ISSUE_AUTH`, Boundary exige encontrar `preparation_id + binding_hash` exactos en una vista de atestaciones durable y sólo lectura. Un ID inexistente o binding alterado no puede obtener HMAC. El store autoritativo de Worker conserva actor+preparación; Boundary sólo recibe la evidencia mínima necesaria. TTL, SO_PEERCRED, socket 0660 y `DENY_PRODUCTION` permanecen activos.
+
+## Incremento 39 - Publicación automática de atestaciones PREPARE
+Tras persistir y verificar una preparación, Worker publica `preparation_id + binding_hash` en un spool append-only bajo `/run/traccar-manager`. Un helper root independiente copia sólo registros válidos y nuevos hacia la vista root-owned/Boundary-readable; Worker no puede escribir la vista consumida por Boundary ni sobrescribir registros previos. El flujo destructivo continúa bloqueado.
