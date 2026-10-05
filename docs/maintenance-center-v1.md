@@ -112,3 +112,6 @@ Se añadió un contrato puro, sin side effects, para la futura frontera privileg
 
 ## Incremento 19 - Servicio de frontera instalado en modo DENY_PRODUCTION
 Se implementó el servidor Unix local de la frontera con identidad separada y unit systemd endurecida. Su única respuesta actual es health/contrato; declara `production_access=false` y `destructive_action_performed=false`. No importa el helper destructivo, no tiene red, shell, capabilities ni `ReadWritePaths` hacia `/opt/traccar/logs`. La UI refleja la existencia del servicio separado, pero Execute continúa bloqueado.
+
+## Incremento 20 - Health real Worker -> Retention Boundary
+Se añadió un cliente estricto del Worker para el socket Unix de Retention Boundary. El cliente acepta únicamente el contrato completo `healthy + DENY_PRODUCTION + production_access=false + destructive_action_performed=false`; cualquier respuesta parcial o alterada falla cerrada. El socket expone exclusivamente health y es local AF_UNIX; no existe operación destructiva servida. Se validó la consulta ejecutándola con la identidad real `traccar-manager-worker`.

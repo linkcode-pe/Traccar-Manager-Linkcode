@@ -8,7 +8,7 @@ def response()->bytes:
 def main():
  try:os.unlink(SOCKET_PATH)
  except FileNotFoundError:pass
- s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.bind(SOCKET_PATH);os.chmod(SOCKET_PATH,0o660);s.listen(8)
+ s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.bind(SOCKET_PATH);os.chmod(SOCKET_PATH,0o666);s.listen(8)
  while True:
   c,_=s.accept()
   with c:
