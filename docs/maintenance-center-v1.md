@@ -139,3 +139,6 @@ La solicitud Execute ahora incluye `retention_days`. Retention Boundary revalida
 
 ## Incremento 27 - Ejecutor destructivo validado exclusivamente en sandbox
 Se implementó el primer ejecutor que realiza una mutación real, pero contiene una barrera de ruta que sólo autoriza directorios bajo `/tmp/traccar-manager-retention-sandbox/` y exige autorización explícita de sandbox. Reutiliza la revalidación final y elimina mediante `unlink(..., dir_fd=...)`. Las pruebas demuestran borrado de histórico sandbox, rechazo de symlink, rechazo sin autorización y rechazo absoluto de `/opt/traccar/logs`. El servicio productivo no importa ni invoca este ejecutor; `DENY_PRODUCTION` permanece intacto.
+
+## Incremento 28 - Auditoría durable del ejecutor sandbox
+Cada ejecución destructiva de sandbox genera ahora evidencia JSONL durable antes de considerarse validada: `preparation_id`, candidatos solicitados, cantidad revalidada, archivos eliminados, evidencia `active_log_included=false`, `production_access=false`, timestamp, enlace al hash previo y hash del registro. La escritura usa `O_NOFOLLOW`, append y `fsync`. El audit path está restringido al sandbox. Producción continúa sin importar/invocar este ejecutor.

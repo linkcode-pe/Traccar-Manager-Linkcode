@@ -2,8 +2,9 @@
 from __future__ import annotations
 import os
 from worker.operations.log_retention_boundary_revalidate import revalidate
+from worker.operations.log_retention_sandbox_audit import append_record
 class SandboxExecutionError(RuntimeError):pass
-def execute_sandbox(root:str,names:list[str],retention_days:int,*,sandbox_authorized:bool=False)->dict[str,object]:
+def execute_sandbox(root:str,names:list[str],retention_days:int,*,sandbox_authorized:bool=False,preparation_id:str="sandbox-test")->dict[str,object]:
  if not sandbox_authorized:raise SandboxExecutionError('SANDBOX_AUTH_REQUIRED')
  real=os.path.realpath(root)
  if not real.startswith('/tmp/traccar-manager-retention-sandbox/'):
@@ -16,4 +17,4 @@ def execute_sandbox(root:str,names:list[str],retention_days:int,*,sandbox_author
   for n in names:
    os.unlink(n,dir_fd=dfd);deleted.append(n)
  finally:os.close(dfd)
- return {'status':'SANDBOX_EXECUTED','deleted_count':len(deleted),'deleted_names':deleted,'production_access':False}
+ result={'status':'SANDBOX_EXECUTED','preparation_id':preparation_id,'requested_names':list(names),'revalidated_count':len(checks),'deleted_count':len(deleted),'deleted_names':deleted,'active_log_included':'tracker-server.log' in names,'production_access':False};append_record(os.path.join(real,'execution-audit.jsonl'),result);return result
