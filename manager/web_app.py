@@ -87,12 +87,12 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Execute validado · validado por frontera; pendiente de confirmación</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · borrado limitado a históricos expirados · autorización one-shot · revalidación inode/dispositivo · log activo protegido</span></div>
+        <p class="muted">Limpieza productiva controlada: analiza, prepara y confirma antes de eliminar históricos expirados.</p><p class="status">Modo productivo habilitado · unlink restringido a históricos elegibles</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span>3 · Ejecutar limpieza</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · borrado limitado a históricos expirados · autorización one-shot · revalidación inode/dispositivo · log activo protegido</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
         <button id="prepare-logs-button" class="secondary" type="button" hidden>Preparar limpieza</button>
-        <button id="execute-logs-button" class="secondary" type="button" disabled>Validar ejecución segura</button>
+        <button id="execute-logs-button" class="secondary" type="button" disabled>Ejecutar limpieza</button>
         <p id="execute-note" class="muted">Disponible después de preparar un plan con candidatos. EXECUTE elimina únicamente candidatos históricos que superen todas las revalidaciones.</p>
         <p id="maintenance-preparation" class="muted" hidden></p><p id="maintenance-readiness" class="status" hidden></p>
         <div id="maintenance-security" class="security-checks" hidden><strong>Controles verificados antes de ejecutar</strong><span>Preparación ligada a la sesión y registrada durablemente</span><span>Auditoría durable antes del consumo</span><span>Autorización one-shot y anti-replay</span><span>Revalidación del plan antes de cualquier mutación</span></div>
