@@ -231,3 +231,6 @@ La tarjeta productiva deja de presentar EXECUTE como borrado habilitado mientras
 
 ## Incremento 49 - Gate visual de mantenimiento operativo
 La interfaz productiva identifica el Centro de mantenimiento como operativo para PREVIEW, PREPARE y el transporte EXECUTE protegido. La eliminación real permanece explícitamente desactivada por autorización del propietario. La siguiente validación E2E de consumo/replay se mantiene no destructiva.
+
+## Incremento 49 - Identidad canónica PREVIEW/PREPARE
+La E2E no destructiva descubrió un `PREVIEW_STALE` sistemático: PREVIEW incluía métricas históricas informativas en su hash mientras PREPARE calculaba identidad sólo con el plan ejecutable. Se unificó la identidad canónica eliminando del hash de PREVIEW `historical_count`, `historical_bytes`, `oldest_candidate_utc` y `newest_candidate_utc`; candidatos, nombres, tamaños, mtimes, cutoff, retención y protección del log activo permanecen ligados. Suite mantenimiento 28/28 OK. No se habilita unlink.
