@@ -307,7 +307,8 @@ def query_retention_boundary_health(request_id:str,subject_id:str,roles:tuple[st
     try:r=json.loads(raw[:-1].decode()) if raw.endswith(b"\n") and raw.count(b"\n")==1 else None
     except Exception:r=None
     expected={'active_log_denied':True,'allowed_name_pattern':'tracker-server.log.YYYYMMDD','allowed_operation':'DELETE_EXPIRED_HISTORICAL_LOGS','component':'traccar-manager-retention-boundary','destructive_action_performed':False,'mode':'DENY_PRODUCTION','network_access':False,'production_access':False,'separate_identity_required':True,'shell_access':False,'status':'healthy'}
-    if not isinstance(r,dict) or set(r)!={'schema_version','protocol_version','operation','request_id','outcome','boundary'} or r.get('operation')!=BOUNDARY_HEALTH_OPERATION or r.get('request_id')!=request_id or r.get('outcome')!='SUCCEEDED' or r.get('boundary')!=expected:raise WorkerTransportError("WORKER_UNAVAILABLE")
+    enabled=dict(expected,mode='PRODUCTION_DELETE_ENABLED',production_access=True)
+    if not isinstance(r,dict) or set(r)!={'schema_version','protocol_version','operation','request_id','outcome','boundary'} or r.get('operation')!=BOUNDARY_HEALTH_OPERATION or r.get('request_id')!=request_id or r.get('outcome')!='SUCCEEDED' or r.get('boundary') not in (expected,enabled):raise WorkerTransportError("WORKER_UNAVAILABLE")
     return dict(r['boundary'])
 
 MAINTENANCE_EXECUTE_OPERATION = "maintenance.logs.execute"
@@ -336,5 +337,5 @@ def query_maintenance_logs_execute(request_id, subject_id, roles, preparation, c
     except Exception: r=None
     if not isinstance(r,dict) or r.get("operation")!=MAINTENANCE_EXECUTE_OPERATION or r.get("request_id")!=request_id or r.get("outcome")!="SUCCEEDED": raise WorkerTransportError("WORKER_UNAVAILABLE")
     e=r.get("execution")
-    if not isinstance(e,dict) or e.get("outcome")!="BLOCKED_BY_FEATURE_GATE" or e.get("destructive_action_performed") is not False: raise WorkerTransportError("WORKER_UNAVAILABLE")
+    if not isinstance(e,dict) or e.get("outcome")!="EXECUTED" or type(e.get("deleted_count")) is not int or type(e.get("deleted_bytes")) is not int or e.get("destructive_action_performed") is not (e.get("deleted_count")>0): raise WorkerTransportError("WORKER_UNAVAILABLE")
     return e

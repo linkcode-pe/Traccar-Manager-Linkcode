@@ -10,6 +10,8 @@ from worker.operations.log_retention_prepare import LogRetentionPreparation
 from worker.operations.log_retention_execute import validate_execution_gate,LogRetentionExecuteError
 from worker.operations.log_retention_consumption import PreparationConsumptionStore
 from worker.operations.log_retention_preparation_store import PreparationStore,PreparationStoreError
+from worker.operations.log_retention_preview import preview_log_retention
+from worker.retention_boundary_client import execute_authenticated,BoundaryUnavailable
 
 OPERATION=ROLE="maintenance.logs.execute"; TARGET={"type":"traccar-log-directory","id":"/opt/traccar/logs"}
 POLICY_ACTOR={"subject_id":"rbac:maintenance.logs.execute","actor_type":"policy"}; WORKER_ACTOR={"subject_id":"traccar-manager-worker","actor_type":"service"}
@@ -26,11 +28,14 @@ def _a(ledger,e,kind='append'):
  except MaintenanceExecuteError:raise
  except Exception: raise MaintenanceExecuteError('AUDIT_UNAVAILABLE') from None
 
-def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,...],preparation:LogRetentionPreparation,confirmation:str,nonce:str,consumption_store:PreparationConsumptionStore,preparation_store:PreparationStore|None=None,preview_provider=None,now=None)->dict[str,Any]:
+def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,...],preparation:LogRetentionPreparation,confirmation:str,nonce:str,consumption_store:PreparationConsumptionStore,preparation_store:PreparationStore|None=None,preview_provider=None,now=None,boundary_executor=None)->dict[str,Any]:
  if not isinstance(request_id,str) or not request_id or not isinstance(subject_id,str) or not subject_id:raise MaintenanceExecuteError('INVALID_REQUEST')
  if not isinstance(roles,tuple) or ROLE not in roles:raise MaintenanceExecuteError('FORBIDDEN')
+ binding_hash=None
  if preparation_store is not None:
-  try: preparation_store.verify(preparation,subject_id=subject_id)
+  try:
+   preparation_store.verify(preparation,subject_id=subject_id)
+   binding_hash=preparation_store._binding(preparation,subject_id)
   except PreparationStoreError as exc: raise MaintenanceExecuteError(str(exc)) from None
  nonce_hash=hashlib.sha256(nonce.encode("utf-8")).hexdigest() if isinstance(nonce,str) else "INVALID"
  payload={"preparation":asdict(preparation) if isinstance(preparation,LogRetentionPreparation) else None,"subject_id":subject_id,"confirmation":confirmation,"nonce_hash":nonce_hash};ph=_d(payload);j='job-'+str(uuid5(_NAMESPACE,'job:'+request_id));human={"subject_id":subject_id,"actor_type":"human","roles":[ROLE]}
@@ -51,8 +56,18 @@ def execute(*,ledger:AuditLedger,request_id:str,subject_id:str,roles:tuple[str,.
  except Exception as exc:
   raise MaintenanceExecuteError(str(exc)) from None
  plan["authorization_consumed"]=True
- result={"confirmed":True,"outcome":"BLOCKED_BY_FEATURE_GATE","gate":plan,"destructive_action_performed":False}
- _a(ledger,_event(**common,event_type="EXECUTION_COMPLETED",phase="AUDIT_RESULT",actor=WORKER_ACTOR,status="COMPLETED",authorization=granted,result_code="FEATURE_GATE_BLOCKED",result=result),kind='result')
- _a(ledger,_event(**common,event_type="AUDIT_FINALIZED",phase="AUDIT_FINALIZATION",actor=WORKER_ACTOR,status="FINALIZED",authorization=granted,result_code="FEATURE_GATE_BLOCKED",result=result))
+ if boundary_executor is None:
+  result={"confirmed":True,"outcome":"BLOCKED_BY_FEATURE_GATE","gate":plan,"destructive_action_performed":False}
+  _a(ledger,_event(**common,event_type="EXECUTION_COMPLETED",phase="AUDIT_RESULT",actor=WORKER_ACTOR,status="COMPLETED",authorization=granted,result_code="FEATURE_GATE_BLOCKED",result=result),kind='result')
+  _a(ledger,_event(**common,event_type="AUDIT_FINALIZED",phase="AUDIT_FINALIZATION",actor=WORKER_ACTOR,status="FINALIZED",authorization=granted,result_code="FEATURE_GATE_BLOCKED",result=result))
+  if not ledger.verify().valid:raise MaintenanceExecuteError('AUDIT_UNAVAILABLE')
+  return result
+ fresh=(preview_provider or preview_log_retention)('/opt/traccar/logs',retention_days=preparation.retention_days); names=[c.name for c in fresh.candidates]
+ if len(names)!=preparation.candidate_count or binding_hash is None: raise MaintenanceExecuteError('PREVIEW_STALE')
+ try: boundary=boundary_executor(preparation_id=preparation.preparation_id,names=names,retention_days=preparation.retention_days,issued_at_utc=preparation.issued_at_utc,expires_at_utc=preparation.expires_at_utc,preparation_binding_hash=binding_hash)
+ except BoundaryUnavailable as exc: raise MaintenanceExecuteError(str(exc)) from None
+ result={"confirmed":True,"outcome":"EXECUTED","gate":plan,"deleted_count":boundary["deleted_count"],"deleted_bytes":boundary["deleted_bytes"],"destructive_action_performed":boundary["destructive_action_performed"]}
+ _a(ledger,_event(**common,event_type="EXECUTION_COMPLETED",phase="AUDIT_RESULT",actor=WORKER_ACTOR,status="COMPLETED",authorization=granted,result_code="EXECUTED",result=result),kind='result')
+ _a(ledger,_event(**common,event_type="AUDIT_FINALIZED",phase="AUDIT_FINALIZATION",actor=WORKER_ACTOR,status="FINALIZED",authorization=granted,result_code="EXECUTED",result=result))
  if not ledger.verify().valid:raise MaintenanceExecuteError('AUDIT_UNAVAILABLE')
  return result

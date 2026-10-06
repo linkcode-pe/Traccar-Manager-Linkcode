@@ -35,6 +35,7 @@ from worker.operations.log_retention_preparation_store import PreparationStore
 from worker.operations.log_retention_consumption import PreparationConsumptionStore
 from worker.operations.log_retention_prepare import LogRetentionPreparation
 from worker.maintenance_execute_dispatch import MaintenanceExecuteError, OPERATION as MAINTENANCE_EXECUTE_OPERATION, ROLE as MAINTENANCE_EXECUTE_ROLE, TARGET as MAINTENANCE_EXECUTE_TARGET, execute as execute_maintenance_execute
+from worker.retention_boundary_client import execute_authenticated
 from worker.retention_boundary_client import query_health as query_retention_boundary_health, BoundaryUnavailable
 from worker.maintenance_prepare_dispatch import (
     MaintenancePrepareError, OPERATION as MAINTENANCE_PREPARE_OPERATION, ROLE as MAINTENANCE_PREPARE_ROLE,
@@ -284,7 +285,7 @@ def _perform_maintenance_prepare(message: dict[str,object], ledger: AuditLedger,
 def _perform_maintenance_execute(message, ledger, preparation_store, consumption_store):
     try:
         p=LogRetentionPreparation(**message["payload"]["preparation"])
-        result=execute_maintenance_execute(ledger=ledger,request_id=message["request_id"],subject_id=message["subject_id"],roles=(MAINTENANCE_EXECUTE_ROLE,),preparation=p,confirmation=message["payload"]["confirmation"],nonce=message["payload"]["nonce"],consumption_store=consumption_store,preparation_store=preparation_store)
+        result=execute_maintenance_execute(ledger=ledger,request_id=message["request_id"],subject_id=message["subject_id"],roles=(MAINTENANCE_EXECUTE_ROLE,),preparation=p,confirmation=message["payload"]["confirmation"],nonce=message["payload"]["nonce"],consumption_store=consumption_store,preparation_store=preparation_store,boundary_executor=execute_authenticated)
     except (TypeError,MaintenanceExecuteError): raise RequestError() from None
     return {"schema_version":1,"protocol_version":PROTOCOL_VERSION,"operation":MAINTENANCE_EXECUTE_OPERATION,"request_id":message["request_id"],"outcome":"SUCCEEDED","execution":result}
 

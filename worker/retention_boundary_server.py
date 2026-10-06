@@ -6,10 +6,14 @@ from worker.operations.log_retention_boundary_contract import BoundaryContract,v
 from worker.operations.log_retention_boundary_revalidate import revalidate
 from worker.operations.log_retention_boundary_credential import load_hmac_key
 from worker.operations.log_retention_plan_auth import sign,verify
+from worker.operations.log_retention_production_delete import delete as production_delete, ProductionDeleteError
 SOCKET_PATH='/run/traccar-manager-retention/boundary.sock'
 PREPARATION_ATTESTATION='/var/lib/traccar-manager-retention/preparations.jsonl'
+PRODUCTION_DELETE_ENABLED=os.environ.get('TRACCAR_MANAGER_RETENTION_PRODUCTION_DELETE')=='1'
 def _status():
- d=BoundaryContract().public_status();d.update({'status':'healthy','destructive_action_performed':False});return d
+ d=BoundaryContract().public_status();d.update({'status':'healthy','destructive_action_performed':False});
+ if PRODUCTION_DELETE_ENABLED:d.update({'mode':'PRODUCTION_DELETE_ENABLED','production_access':True})
+ return d
 def response()->bytes:
  return (json.dumps(_status(),sort_keys=True,separators=(',',':'))+'\n').encode()
 def _authorized_peer(c)->bool:
@@ -33,7 +37,17 @@ def handle(raw:bytes,*,peer_authorized:bool=False)->bytes:
   if text=='health': out=_status()
   else:
    req=json.loads(text)
-   if req.get('action') in ('ISSUE_AUTH','VERIFY') and not peer_authorized:
+   if isinstance(req,dict) and set(req)=={'operation','names'}:
+    if not isinstance(req.get('names'),list) or not validate_request(req.get('operation'),req['names']): raise ValueError()
+    out={'status':'DENIED_BY_PRODUCTION_GATE','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':True,'candidate_count':len(req['names']),'revalidated_count':len(req['names'])}
+    return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
+   if isinstance(req,dict) and set(req)=={'operation','names','retention_days'}:
+    if not isinstance(req.get('names'),list) or not validate_request(req.get('operation'),req['names']): raise ValueError()
+    checks=[revalidate('/opt/traccar/logs',n,req['retention_days']) for n in req['names']]
+    status='DENIED_BY_PRODUCTION_GATE' if all(x.eligible for x in checks) else 'DENIED_BY_REVALIDATION'
+    out={'status':status,'mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':True,'candidate_count':len(req['names']),'revalidated_count':sum(x.eligible for x in checks)}
+    return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
+   if req.get('action') in ('ISSUE_AUTH','VERIFY','EXECUTE') and not peer_authorized:
     out={'status':'DENIED_BY_PEER_IDENTITY','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':False};return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
    if not isinstance(req,dict) or not isinstance(req.get('names'),list) or not validate_request(req.get('operation'),req['names']): raise ValueError()
    action=req.get('action','VERIFY')
@@ -47,7 +61,7 @@ def handle(raw:bytes,*,peer_authorized:bool=False)->bytes:
     if not _attested(req['preparation_id'],req['preparation_binding_hash']):raise PermissionError('PREPARATION_NOT_ATTESTED')
     token=sign(load_hmac_key(),req['preparation_id']+':'+req['preparation_binding_hash']+':'+req['expires_at_utc'],req['names'],req['retention_days'])
     out={'status':'AUTH_ISSUED','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'plan_auth':token};return (json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
-   if set(req)!={'action','operation','preparation_id','names','retention_days','issued_at_utc','expires_at_utc','preparation_binding_hash','plan_auth'} or action!='VERIFY':raise ValueError()
+   if set(req)!={'action','operation','preparation_id','names','retention_days','issued_at_utc','expires_at_utc','preparation_binding_hash','plan_auth'} or action not in ('VERIFY','EXECUTE'):raise ValueError()
    try: expires=datetime.fromisoformat(req['expires_at_utc'].replace('Z','+00:00'))
    except Exception:raise ValueError()
    if expires.tzinfo is None or datetime.now(timezone.utc)>=expires:
@@ -58,6 +72,12 @@ def handle(raw:bytes,*,peer_authorized:bool=False)->bytes:
    checks=[revalidate('/opt/traccar/logs',n,req['retention_days']) for n in req['names']]
    if not all(x.eligible for x in checks):
     out={'status':'DENIED_BY_REVALIDATION','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':True,'candidate_count':len(req['names']),'revalidated_count':sum(x.eligible for x in checks)}
+   elif action=='EXECUTE' and PRODUCTION_DELETE_ENABLED:
+    try:
+     result=production_delete(req['names'],req['retention_days'])
+     out={'status':'EXECUTED','mode':'PRODUCTION_DELETE_ENABLED','production_access':True,'destructive_action_performed':result['destructive_action_performed'],'validated_request':True,'candidate_count':len(req['names']),'revalidated_count':len(checks),'deleted_count':result['deleted_count'],'deleted_bytes':result['deleted_bytes']}
+    except ProductionDeleteError:
+     out={'status':'DENIED_BY_REVALIDATION','mode':'PRODUCTION_DELETE_ENABLED','production_access':True,'destructive_action_performed':False,'validated_request':True,'candidate_count':len(req['names']),'revalidated_count':len(checks)}
    else:
     out={'status':'DENIED_BY_PRODUCTION_GATE','mode':'DENY_PRODUCTION','production_access':False,'destructive_action_performed':False,'validated_request':True,'candidate_count':len(req['names']),'revalidated_count':len(checks)}
  except Exception:

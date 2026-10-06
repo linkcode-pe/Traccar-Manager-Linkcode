@@ -213,3 +213,6 @@ La UI de Manager incorpora ahora el tercer control visible `Validar ejecución s
 
 ## Incremento 49 - Centro de mantenimiento visualmente operativo
 La cuenta administrativa tiene roles PREVIEW, PREPARE y EXECUTE explícitos. El transporte HTTP/UDS y Worker permanecen desplegados, con consumo único y feature gate destructivo cerrado. La prueba automatizada E2E adicional desde una shell auxiliar quedó bloqueada por controles externos de ejecución; no se relaja seguridad ni se habilita unlink para sortearlo. La UI refleja el estado operativo y la eliminación real continúa desactivada.
+
+## Incremento 49 - Frontera de eliminación productiva limitada
+Con autorización expresa del propietario para `unlink`, se implementa una ruta productiva estrecha: sólo `/opt/traccar/logs`, sólo nombres `tracker-server.log.YYYYMMDD`, mínimo 30 días, sin duplicados, sin symlinks, revalidación final y comprobación device+inode inmediatamente antes de `unlink`. El log activo no coincide con la allowlist. EXECUTE sigue requiriendo preparación durable, binding de actor, HMAC, TTL, nonce one-shot y auditoría durable. La frontera no dispone de red ni shell. La activación systemd requiere identidad root aislada únicamente porque `/opt/traccar/logs` es root:root 0755; `ProtectSystem=strict` limita escritura a ese directorio y al runtime del socket.
