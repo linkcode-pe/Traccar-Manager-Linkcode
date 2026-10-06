@@ -225,3 +225,6 @@ Durante validación móvil se observó `PROVIDER_UNAVAILABLE` intermitente: la r
 
 ## Incremento 49 - Corrección de métricas históricas en Preview
 La serialización auditada de `maintenance.logs.preview` ahora conserva `historical_count`, `historical_bytes`, `oldest_candidate_utc` y `newest_candidate_utc` producidos por el motor puro de preview. Esto corrige la UI que mostraba `undefined` pese a recibir un preview válido. No modifica selección de candidatos ni capacidad destructiva. 15 pruebas Preview/Dispatcher OK.
+
+## Incremento 49 - UI alineada con el gate no destructivo autorizado
+La tarjeta productiva deja de presentar EXECUTE como borrado habilitado mientras `unlink` continúa expresamente no autorizado. La interfaz muestra `Validar EXECUTE`, anti-replay y `unlink deshabilitado`, manteniendo PREVIEW/PREPARE y las métricas reales. No se modifica la frontera destructiva ni MySQL/Traccar.

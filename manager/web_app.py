@@ -87,13 +87,13 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Limpieza productiva controlada: analiza, prepara y confirma antes de eliminar históricos expirados.</p><p class="status">Modo productivo habilitado · unlink restringido a históricos elegibles</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span>3 · Ejecutar limpieza</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · borrado limitado a históricos expirados · autorización one-shot · revalidación inode/dispositivo · log activo protegido</span></div>
+        <p class="muted">Construcción segura del flujo de mantenimiento: analiza, prepara y valida EXECUTE sin eliminar archivos.</p><p class="status">EXECUTE E2E no destructivo autorizado · anti-replay activo · unlink deshabilitado</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span>3 · Validar EXECUTE</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · autorización one-shot · anti-replay · revalidación · log activo protegido · unlink deshabilitado</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
         <button id="prepare-logs-button" class="secondary" type="button" hidden>Preparar limpieza</button>
-        <button id="execute-logs-button" class="secondary" type="button" disabled>Ejecutar limpieza</button>
-        <p id="execute-note" class="muted">Disponible después de preparar un plan con candidatos. EXECUTE elimina únicamente candidatos históricos que superen todas las revalidaciones.</p>
+        <button id="execute-logs-button" class="secondary" type="button" disabled>Validar EXECUTE</button>
+        <p id="execute-note" class="muted">Disponible después de preparar un plan con candidatos. En esta etapa EXECUTE valida autorización, consumo único y anti-replay; no elimina archivos.</p>
         <p id="maintenance-preparation" class="muted" hidden></p><p id="maintenance-readiness" class="status" hidden></p>
         <div id="maintenance-security" class="security-checks" hidden><strong>Controles verificados antes de ejecutar</strong><span>Preparación ligada a la sesión y registrada durablemente</span><span>Auditoría durable antes del consumo</span><span>Autorización one-shot y anti-replay</span><span>Revalidación del plan antes de cualquier mutación</span></div>
         <p id="maintenance-state" class="status">Sin análisis</p>
@@ -232,7 +232,7 @@ APP_JS = r"""(() => {
       maintenanceHistoryBytes.textContent=formatBytes(p.historical_bytes);
       maintenanceCandidateCount.textContent=String(p.candidate_count);
       maintenanceCandidateBytes.textContent=formatBytes(p.candidate_bytes);
-      maintenanceSummary.hidden=false; lastPreview=p.candidate_count>0?{previewId:data.preview_id,days:days}:null; lastPreparation=null; executeLogsButton.disabled=true; executeNote.textContent="Disponible después de preparar un plan con candidatos. EXECUTE elimina únicamente candidatos históricos que superen todas las revalidaciones."; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true; maintenanceSecurity.hidden=true;
+      maintenanceSummary.hidden=false; lastPreview=p.candidate_count>0?{previewId:data.preview_id,days:days}:null; lastPreparation=null; executeLogsButton.disabled=true; executeNote.textContent="Disponible después de preparar un plan con candidatos. En esta etapa EXECUTE valida autorización, consumo único y anti-replay; no elimina archivos."; prepareLogsButton.hidden=p.candidate_count===0; maintenancePreparation.hidden=true; maintenanceSecurity.hidden=true;
       if(p.candidate_count===0){ maintenanceReadiness.textContent="Sin candidatos · Prepare y Execute deshabilitados · no hay nada que eliminar"; maintenanceReadiness.hidden=false; } else { maintenanceReadiness.hidden=true; }
       maintenanceRange.textContent=p.candidate_count ? "Rango candidato: "+p.oldest_candidate_utc+" → "+p.newest_candidate_utc : "No existen archivos fuera de la retención seleccionada. El flujo termina de forma segura sin Prepare ni Execute.";
       maintenanceRange.hidden=false;
