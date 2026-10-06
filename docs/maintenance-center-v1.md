@@ -228,3 +228,6 @@ La serialización auditada de `maintenance.logs.preview` ahora conserva `histori
 
 ## Incremento 49 - UI alineada con el gate no destructivo autorizado
 La tarjeta productiva deja de presentar EXECUTE como borrado habilitado mientras `unlink` continúa expresamente no autorizado. La interfaz muestra `Validar EXECUTE`, anti-replay y `unlink deshabilitado`, manteniendo PREVIEW/PREPARE y las métricas reales. No se modifica la frontera destructiva ni MySQL/Traccar.
+
+## Incremento 49 - Gate visual de mantenimiento operativo
+La interfaz productiva identifica el Centro de mantenimiento como operativo para PREVIEW, PREPARE y el transporte EXECUTE protegido. La eliminación real permanece explícitamente desactivada por autorización del propietario. La siguiente validación E2E de consumo/replay se mantiene no destructiva.
