@@ -87,7 +87,7 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Construcción segura del flujo de mantenimiento: analiza, prepara y valida EXECUTE sin eliminar archivos.</p><p class="status">EXECUTE E2E no destructivo autorizado · anti-replay activo · unlink deshabilitado</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span>3 · Validar EXECUTE</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · autorización one-shot · anti-replay · revalidación · log activo protegido · unlink deshabilitado</span></div>
+        <p class="muted">Construcción segura del flujo de mantenimiento: analiza, prepara y valida EXECUTE sin eliminar archivos.</p><p class="status">EXECUTE E2E verificado en producción · primer uso bloqueado seguro · replay rechazado · unlink deshabilitado</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span>3 · Validar EXECUTE</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · autorización one-shot · anti-replay · revalidación · log activo protegido · unlink deshabilitado</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>

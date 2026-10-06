@@ -234,3 +234,6 @@ La interfaz productiva identifica el Centro de mantenimiento como operativo para
 
 ## Incremento 49 - Identidad canónica PREVIEW/PREPARE
 La E2E no destructiva descubrió un `PREVIEW_STALE` sistemático: PREVIEW incluía métricas históricas informativas en su hash mientras PREPARE calculaba identidad sólo con el plan ejecutable. Se unificó la identidad canónica eliminando del hash de PREVIEW `historical_count`, `historical_bytes`, `oldest_candidate_utc` y `newest_candidate_utc`; candidatos, nombres, tamaños, mtimes, cutoff, retención y protección del log activo permanecen ligados. Suite mantenimiento 28/28 OK. No se habilita unlink.
+
+## Incremento 50 - E2E EXECUTE no destructivo verificado en producción
+Tras corregir la identidad canónica PREVIEW/PREPARE, se ejecutó la cadena real bajo la identidad Worker: PREVIEW → PREPARE (`READY_BLOCKED`) → EXECUTE (`BLOCKED_BY_FEATURE_GATE`, `destructive_action_performed=false`) → replay de la misma preparación (`PREPARATION_ALREADY_CONSUMED`). Había 0 candidatos, por lo que no existía archivo elegible; `unlink` continúa deshabilitado. Traccar mantuvo su PID.
