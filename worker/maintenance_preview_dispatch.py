@@ -83,6 +83,8 @@ def execute(*, ledger: AuditLedger, request_id: str, subject_id: str,
     plan = {
         "log_dir": preview.log_dir, "retention_days": preview.retention_days, "cutoff_utc": preview.cutoff_utc,
         "candidate_count": preview.candidate_count, "candidate_bytes": preview.candidate_bytes,
+        "historical_count": preview.historical_count, "historical_bytes": preview.historical_bytes,
+        "oldest_candidate_utc": preview.oldest_candidate_utc, "newest_candidate_utc": preview.newest_candidate_utc,
         "candidates": [{"name": c.name, "size_bytes": c.size_bytes, "mtime_utc": c.mtime_utc} for c in preview.candidates],
         "active_log_protected": preview.active_log_protected,
         "destructive_action_performed": preview.destructive_action_performed,

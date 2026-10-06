@@ -222,3 +222,6 @@ Se elevó el presupuesto de round-trip local Manager→Worker de 15 s a 30 s. El
 
 ## Incremento 49 - estabilización de lectura del dashboard
 Durante validación móvil se observó `PROVIDER_UNAVAILABLE` intermitente: la respuesta del Worker excedía el presupuesto UDS de 15 s al reconstruir el recibo final recorriendo el ledger creciente. Se optimizó la búsqueda del `AUDIT_FINALIZED` solicitado para recorrer el ledger una sola vez en reversa, manteniendo detección de duplicados y verificación íntegra de la cadena. Suite ledger: 32/32 OK. No cambia permisos ni habilita acciones destructivas.
+
+## Incremento 49 - Corrección de métricas históricas en Preview
+La serialización auditada de `maintenance.logs.preview` ahora conserva `historical_count`, `historical_bytes`, `oldest_candidate_utc` y `newest_candidate_utc` producidos por el motor puro de preview. Esto corrige la UI que mostraba `undefined` pese a recibir un preview válido. No modifica selección de candidatos ni capacidad destructiva. 15 pruebas Preview/Dispatcher OK.
