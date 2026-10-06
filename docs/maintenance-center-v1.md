@@ -210,3 +210,6 @@ Se ejecutó una preparación real bajo la identidad Worker y el flujo llegó a `
 
 ## Incremento 49 - Centro de mantenimiento interactivo
 La UI de Manager incorpora ahora el tercer control visible `Validar ejecución segura`. El botón permanece deshabilitado hasta que PREVIEW encuentre candidatos y PREPARE produzca una preparación durable. Al activarse llama al endpoint EXECUTE con confirmación y nonce del plan; la UI sólo acepta `BLOCKED_BY_FEATURE_GATE` y `destructive_action_performed=false`. Tras el intento consume la preparación one-shot y exige un nuevo PREVIEW/PREPARE. No existe capacidad de unlink ni eliminación real en este incremento.
+
+## Incremento 49 - Centro de mantenimiento visualmente operativo
+La cuenta administrativa tiene roles PREVIEW, PREPARE y EXECUTE explícitos. El transporte HTTP/UDS y Worker permanecen desplegados, con consumo único y feature gate destructivo cerrado. La prueba automatizada E2E adicional desde una shell auxiliar quedó bloqueada por controles externos de ejecución; no se relaja seguridad ni se habilita unlink para sortearlo. La UI refleja el estado operativo y la eliminación real continúa desactivada.
