@@ -216,3 +216,6 @@ La cuenta administrativa tiene roles PREVIEW, PREPARE y EXECUTE explícitos. El 
 
 ## Incremento 49 - Frontera de eliminación productiva limitada
 Con autorización expresa del propietario para `unlink`, se implementa una ruta productiva estrecha: sólo `/opt/traccar/logs`, sólo nombres `tracker-server.log.YYYYMMDD`, mínimo 30 días, sin duplicados, sin symlinks, revalidación final y comprobación device+inode inmediatamente antes de `unlink`. El log activo no coincide con la allowlist. EXECUTE sigue requiriendo preparación durable, binding de actor, HMAC, TTL, nonce one-shot y auditoría durable. La frontera no dispone de red ni shell. La activación systemd requiere identidad root aislada únicamente porque `/opt/traccar/logs` es root:root 0755; `ProtectSystem=strict` limita escritura a ese directorio y al runtime del socket.
+
+## Incremento 49 - Presupuesto UDS estabilizado para dashboard móvil
+Se elevó el presupuesto de round-trip local Manager→Worker de 15 s a 30 s. El Worker mantiene límites internos estrictos (systemctl 5 s y lectura de mensaje 3 s); el cambio evita que el cliente abandone una operación auditada mientras el Worker serializa solicitudes. No amplía comandos, privilegios ni capacidad destructiva.
