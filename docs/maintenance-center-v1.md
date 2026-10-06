@@ -204,3 +204,6 @@ La allowlist de AuthStore soporta `maintenance.logs.execute`, pero el store root
 
 ## Incremento 48 - Autorización explícita EXECUTE en cuenta administrativa
 Con autorización expresa del propietario, se realizó backup root-only del AuthStore y se asignaron `maintenance.logs.prepare` y `maintenance.logs.execute` a la única cuenta administrativa existente `linkcode3`, conservando sus roles previos. AuthStore fue validado bajo la identidad web y Manager reiniciado; Traccar no se reinició. La autorización cubre únicamente pruebas E2E no destructivas: `unlink` y eliminación real continúan prohibidos.
+
+## Incremento 49 - Prueba productiva del consumo EXECUTE no destructivo
+Se ejecutó una preparación real bajo la identidad Worker y el flujo llegó a `BLOCKED_BY_FEATURE_GATE` con `destructive_action_performed=false`. El consumo durable fue escrito para el preparation_id de prueba, demostrando que la autorización de un solo uso se consume antes del feature gate. La sonda de reporte falló únicamente al consultar `authorization_consumed` en el nivel superior (el campo vive dentro de `gate`); no hubo borrado ni unlink. Traccar mantuvo su PID.

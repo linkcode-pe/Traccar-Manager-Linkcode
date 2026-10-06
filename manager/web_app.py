@@ -87,7 +87,7 @@ PAGE = """<!doctype html>
       </article>
       <article id="maintenance-card" class="card" aria-labelledby="maintenance-title">
         <h3 id="maintenance-title">Centro de mantenimiento</h3>
-        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Execute validado · denegado por gate final</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · EXECUTE autorizado explícitamente · PREVIEW + PREPARE + EXECUTE E2E no destructivo · anti-replay activo · sin unlink</span></div>
+        <p class="muted">Flujo seguro de mantenimiento de logs con vista previa y preparación auditada.</p><div class="safety-flow" aria-label="Flujo de seguridad"><span>1 · Analizar</span><span>2 · Preparar</span><span class="locked">3 · Execute validado · denegado por gate final</span></div><div class="boundary-card"><strong>Frontera destructiva aislada</strong><span id="boundary-health">Comprobando frontera de seguridad…</span><span>Sin red · sin shell · EXECUTE no destructivo validado · autorización consumida una sola vez · feature gate bloquea borrado · sin unlink</span></div>
         <label for="retention-days">Retención de logs (días)</label>
         <input id="retention-days" type="number" min="30" max="3650" value="90">
         <button id="preview-logs-button" type="button">Analizar logs</button>
