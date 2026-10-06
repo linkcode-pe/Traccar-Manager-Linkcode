@@ -207,3 +207,6 @@ Con autorización expresa del propietario, se realizó backup root-only del Auth
 
 ## Incremento 49 - Prueba productiva del consumo EXECUTE no destructivo
 Se ejecutó una preparación real bajo la identidad Worker y el flujo llegó a `BLOCKED_BY_FEATURE_GATE` con `destructive_action_performed=false`. El consumo durable fue escrito para el preparation_id de prueba, demostrando que la autorización de un solo uso se consume antes del feature gate. La sonda de reporte falló únicamente al consultar `authorization_consumed` en el nivel superior (el campo vive dentro de `gate`); no hubo borrado ni unlink. Traccar mantuvo su PID.
+
+## Incremento 49 - Centro de mantenimiento interactivo
+La UI de Manager incorpora ahora el tercer control visible `Validar ejecución segura`. El botón permanece deshabilitado hasta que PREVIEW encuentre candidatos y PREPARE produzca una preparación durable. Al activarse llama al endpoint EXECUTE con confirmación y nonce del plan; la UI sólo acepta `BLOCKED_BY_FEATURE_GATE` y `destructive_action_performed=false`. Tras el intento consume la preparación one-shot y exige un nuevo PREVIEW/PREPARE. No existe capacidad de unlink ni eliminación real en este incremento.
