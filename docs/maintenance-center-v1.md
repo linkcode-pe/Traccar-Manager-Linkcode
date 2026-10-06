@@ -219,3 +219,6 @@ Con autorización expresa del propietario para `unlink`, se implementa una ruta 
 
 ## Incremento 49 - Presupuesto UDS estabilizado para dashboard móvil
 Se elevó el presupuesto de round-trip local Manager→Worker de 15 s a 30 s. El Worker mantiene límites internos estrictos (systemctl 5 s y lectura de mensaje 3 s); el cambio evita que el cliente abandone una operación auditada mientras el Worker serializa solicitudes. No amplía comandos, privilegios ni capacidad destructiva.
+
+## Incremento 49 - estabilización de lectura del dashboard
+Durante validación móvil se observó `PROVIDER_UNAVAILABLE` intermitente: la respuesta del Worker excedía el presupuesto UDS de 15 s al reconstruir el recibo final recorriendo el ledger creciente. Se optimizó la búsqueda del `AUDIT_FINALIZED` solicitado para recorrer el ledger una sola vez en reversa, manteniendo detección de duplicados y verificación íntegra de la cadena. Suite ledger: 32/32 OK. No cambia permisos ni habilita acciones destructivas.

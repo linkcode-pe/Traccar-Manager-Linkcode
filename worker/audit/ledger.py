@@ -852,10 +852,15 @@ class AuditLedger:
         report, records = self._read_verified_records()
         if not report.valid:
             return None
-        finals = [r for r in records if r.get("event_type") == "AUDIT_FINALIZED" and r.get("request_id") == request_id]
-        if len(finals) != 1:
+        final = None
+        for record in reversed(records):
+            if record.get("event_type") == "AUDIT_FINALIZED" and record.get("request_id") == request_id:
+                if final is not None:
+                    return None
+                final = record
+        if final is None:
             return None
-        final = finals[0]; job_id = final.get("job_id")
+        job_id = final.get("job_id")
         job_records = [r for r in records if r.get("job_id") == job_id]
         expected = [("REQUEST_RECEIVED","REQUEST"),("VALIDATION_PASSED","VALIDATION"),
                     ("PREVIEW_STARTED","PREVIEW"),("PREVIEW_COMPLETED","PREVIEW"),
