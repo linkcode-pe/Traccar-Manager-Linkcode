@@ -201,3 +201,6 @@ Se añadió `maintenance.logs.execute` a la allowlist estricta de roles del Auth
 
 ## Incremento 47 - Verificación de asignación productiva EXECUTE
 La allowlist de AuthStore soporta `maintenance.logs.execute`, pero el store root-owned productivo aún no asigna ese rol a ninguna cuenta. Por diseño fail-closed no se altera silenciosamente una cuenta humana ni se fabrican credenciales para una prueba. El transporte HTTP/UDS permanece desplegado y no destructivo; la E2E autenticada queda bloqueada hasta una asignación explícita del rol a una identidad autorizada.
+
+## Incremento 48 - Autorización explícita EXECUTE en cuenta administrativa
+Con autorización expresa del propietario, se realizó backup root-only del AuthStore y se asignaron `maintenance.logs.prepare` y `maintenance.logs.execute` a la única cuenta administrativa existente `linkcode3`, conservando sus roles previos. AuthStore fue validado bajo la identidad web y Manager reiniciado; Traccar no se reinició. La autorización cubre únicamente pruebas E2E no destructivas: `unlink` y eliminación real continúan prohibidos.
