@@ -66,3 +66,7 @@ El ejecutor guarda un estado JSON mínimo en `prog006-run-status.json` de manera
 ## Alertas del automatizador (2026-10-09)
 
 La API autenticada calcula `runner_alert`: `failed` si el último resultado no es satisfactorio; `stale` si el último resultado satisfactorio supera 36 horas, tiene fecha inválida o futura; `missing` si no existe estado válido. El navegador presenta aviso visible con `role=status` y no ejecuta acciones administrativas. Prueba productiva con último resultado `skipped_unchanged`: `runner_alert=null`, historial 2 registros. Tras reiniciar Manager, una comprobación inmediata devolvió HTTP 503 transitorio; la repetición a los 3 segundos devolvió HTTP 200 con servicios activos.
+
+## Regresión de alertas en laboratorio aislado (2026-10-09)
+
+`tests/test_prog006_runner_alerts.py` añade seis pruebas con base SQLite y archivos de estado temporales, cubriendo falta de estado, fallos, retraso de 37 horas, fecha futura, éxito/omisión recientes y límite/saneamiento de historial. Primera invocación detectó que faltaba `progress.init()` en la preparación de la base aislada; se corrigió. Segunda invocación: 6 pruebas OK. Suite completa mediante `scripts/run-isolated-tests.sh -q`: exit 0 (~25 s). No se modificó la base de producción.
