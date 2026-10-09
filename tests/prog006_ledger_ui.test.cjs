@@ -79,6 +79,9 @@ test('invalid or incomplete server pages never partially append records',async()
   {items:[report(20)],next_cursor:'invalid'},
   {items:[],next_cursor:report(19).event_id},
   {items:[report(20)],next_cursor:report(21).event_id},
+  {items:[report(30)],next_cursor:null},
+  {items:[report(20),report(20)],next_cursor:null},
+  {items:[report(20)],next_cursor:report(19).event_id},
   {items:Array.from({length:26},(_,i)=>report(i)),next_cursor:null}];
  for(const page of cases){
   const ui=setup(async()=>({ok:true,json:async()=>page}));

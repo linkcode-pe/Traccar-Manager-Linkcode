@@ -1,5 +1,5 @@
 "use strict";
-let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false;
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set();
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
@@ -72,7 +72,7 @@ function setData(data){
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
  const ledger=$("ledger-history");
- if(!ledgerExpanded)ledger.replaceChildren();
+ if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear()}
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
@@ -80,6 +80,7 @@ function setData(data){
  for(const entry of (ledgerExpanded?[]:(data.evidence_ledger||[]))){
   const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
   const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
+  ledgerSeen.add(entry.event_id);
   ledger.append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
  }
  if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
@@ -103,16 +104,19 @@ async function loadOlderLedger(){
   const r=await fetch("/manager/api/progress/ledger?before="+encodeURIComponent(ledgerCursor),{credentials:"same-origin",cache:"no-store"});
   if(!r.ok)throw new Error(r.status===401||r.status===403?"Acceso denegado o sesión caducada":"No se pudo consultar el historial");
   const page=await r.json();
-  if(!page||!Array.isArray(page.items)||page.items.length>25||
+  if(!page||!Array.isArray(page.items)||page.items.length>10||
      (page.next_cursor!==null&&(typeof page.next_cursor!=="string"||!/^test-run-[a-f0-9]{24}$/.test(page.next_cursor)))||
      (page.next_cursor!==null&&page.items.length===0)||
      !page.items.every(entry=>entry&&typeof entry.event_id==="string"&&/^test-run-[a-f0-9]{24}$/.test(entry.event_id)&&
        typeof entry.recorded_at==="string"&&typeof entry.result==="string"&&
        typeof entry.report_sha256==="string"&&/^[a-f0-9]{64}$/.test(entry.report_sha256)&&
        ["ok","missing","mismatch","invalid","unavailable"].includes(entry.integrity))||
-     (page.items.length>0&&page.next_cursor!==null&&page.next_cursor===ledgerCursor))
+     page.items.some(entry=>ledgerSeen.has(entry.event_id))||
+     new Set(page.items.map(entry=>entry.event_id)).size!==page.items.length||
+     (page.next_cursor!==null&&page.next_cursor!==page.items[page.items.length-1]?.event_id))
     throw new Error("Respuesta del historial inválida; inténtalo de nuevo");
   for(const entry of page.items){
+   ledgerSeen.add(entry.event_id);
    const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
    const labels={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"};
    $("ledger-history").append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+(labels[entry.integrity]||"No comprobado")));
