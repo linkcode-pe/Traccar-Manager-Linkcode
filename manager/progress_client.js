@@ -1,9 +1,20 @@
 "use strict";
-let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set();
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map();
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
 function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
+function ledgerRow(entry){
+ const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
+ const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
+ return node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity);
+}
+function trackLedger(entry){
+ ledgerSeen.add(entry.event_id);
+ const row=ledgerRow(entry);
+ ledgerNodes.set(entry.event_id,row);
+ return row;
+}
 function render(){
  const root=$("tasks"),query=$("search").value.trim().toLowerCase(),filter=$("state-filter").value;
  const expanded=new Set([...root.querySelectorAll("details.phase[open]")].map(x=>x.dataset.phase));
@@ -72,23 +83,24 @@ function setData(data){
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
  const ledger=$("ledger-history");
- if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear()}
+ if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear()}
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
  $("ledger-integrity").textContent=(integrity.ok||0)+" evidencias íntegras · "+issues+" con incidencias (faltantes, alteradas o inaccesibles)";
  const latest=data.evidence_ledger||[];
  if(ledgerExpanded&&latest.length){
+  for(const entry of latest){
+   const old=ledgerNodes.get(entry.event_id);
+   if(old)old.textContent=ledgerRow(entry).textContent;
+  }
   const overlap=latest.findIndex(entry=>ledgerSeen.has(entry.event_id));
   if(overlap>=0){
    const fresh=latest.slice(0,overlap);
    const prefix=[];
    for(const entry of fresh){
     if(ledgerSeen.has(entry.event_id))continue;
-    const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
-    const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
-    prefix.push(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
-    ledgerSeen.add(entry.event_id);
+    prefix.push(trackLedger(entry));
    }
    if(prefix.length)ledger.prepend(...prefix);
   }else if(latest.some(entry=>!ledgerSeen.has(entry.event_id))){
@@ -96,10 +108,7 @@ function setData(data){
   }
  }
  for(const entry of (ledgerExpanded?[]:latest)){
-  const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
-  const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
-  ledgerSeen.add(entry.event_id);
-  ledger.append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
+  ledger.append(trackLedger(entry));
  }
  if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
  if(!ledgerExpanded){
@@ -134,10 +143,7 @@ async function loadOlderLedger(){
      (page.next_cursor!==null&&page.next_cursor!==page.items[page.items.length-1]?.event_id))
     throw new Error("Respuesta del historial inválida; inténtalo de nuevo");
   for(const entry of page.items){
-   ledgerSeen.add(entry.event_id);
-   const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
-   const labels={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"};
-   $("ledger-history").append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+(labels[entry.integrity]||"No comprobado")));
+   $("ledger-history").append(trackLedger(entry));
   }
   ledgerExpanded=true;
   ledgerCursor=page.next_cursor;$("ledger-more").hidden=!ledgerCursor;

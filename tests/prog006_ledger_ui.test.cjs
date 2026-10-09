@@ -107,3 +107,20 @@ test('new records remain unique across successive polls',async()=>{
  assert.equal(ui.element('ledger-history').childElementCount,14);
  assert.match(ui.element('ledger-history').children[0].textContent,/test-run-000000000000000000000020/);
 });
+
+test('poll updates integrity labels in place without reordering or duplicating',async()=>{
+ const ui=setup();await new Promise(setImmediate);
+ await ui.element('ledger-more').onclick();
+ const before=ui.element('ledger-history').children.slice();
+ ui.data.evidence_ledger[0]={...ui.data.evidence_ledger[0],integrity:'mismatch'};
+ await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.equal(ui.element('ledger-history').children[0],before[0]);
+ assert.match(before[0].textContent,/Integridad alterada/);
+ assert.equal(ui.element('ledger-history').children[11],before[11]);
+ ui.data.evidence_ledger=[report(31),...ui.data.evidence_ledger.slice(0,9)];
+ await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,13);
+ assert.match(ui.element('ledger-history').children[0].textContent,/test-run-00000000000000000000001f/);
+ assert.equal(ui.element('ledger-history').children[1],before[0]);
+});
