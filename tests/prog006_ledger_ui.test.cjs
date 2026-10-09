@@ -304,3 +304,22 @@ test('after bounded failure a subsequent poll can recover continuity without los
  assert.equal(ui.element('ledger-history').children[3],old);
  assert.equal(ui.element('ledger-error').textContent,'');
 });
+
+test('a gap detected during older-page loading recovers after the load finishes',async()=>{
+ let finishOlder,recoveryCalls=0;
+ const ui=setup(async()=>new Promise(resolve=>{finishOlder=resolve}),async()=>{
+  recoveryCalls++;
+  return {ok:true,json:async()=>({items:[report(34),report(33),report(32),report(31),report(30)],next_cursor:null})};
+ });
+ await new Promise(setImmediate);
+ const older=ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=[report(34),report(33),report(30),...ui.data.evidence_ledger.slice(1,8)];
+ ui.data.evidence_ledger_count=26;
+ await ui.poll();
+ assert.equal(recoveryCalls,0);
+ finishOlder({ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})});
+ await older;await new Promise(setImmediate);
+ assert.equal(recoveryCalls,1);
+ assert.equal(ui.element('ledger-history').childElementCount,16);
+ assert.equal(ui.element('ledger-error').textContent,'');
+});

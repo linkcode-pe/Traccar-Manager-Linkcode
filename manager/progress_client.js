@@ -83,14 +83,14 @@ function setData(data){
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
  const ledger=$("ledger-history");
- if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear();ledgerLastCount=null;ledgerLastHead=null;ledgerGapPending=false}
+ if(!ledgerExpanded&&!ledgerBusy){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear();ledgerLastCount=null;ledgerLastHead=null;ledgerGapPending=false}
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
  $("ledger-integrity").textContent=(integrity.ok||0)+" evidencias íntegras · "+issues+" con incidencias (faltantes, alteradas o inaccesibles)";
  const latest=data.evidence_ledger||[];
  const currentCount=Number.isSafeInteger(data.evidence_ledger_count)?data.evidence_ledger_count:null;
- if(ledgerExpanded&&latest.length){
+ if((ledgerExpanded||ledgerBusy)&&latest.length){
   for(const entry of latest){
    const old=ledgerNodes.get(entry.event_id);
    if(old)old.textContent=ledgerRow(entry).textContent;
@@ -116,12 +116,12 @@ function setData(data){
   }
  }
  if(currentCount!==null)ledgerLastCount=currentCount;
- for(const entry of (ledgerExpanded?[]:latest)){
+ for(const entry of ((ledgerExpanded||ledgerBusy)?[]:latest)){
   ledger.append(trackLedger(entry));
  }
- if(!ledgerExpanded&&latest.length)ledgerLastHead=latest[0];
+ if(!ledgerExpanded&&!ledgerBusy&&latest.length)ledgerLastHead=latest[0];
  if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
- if(!ledgerExpanded){
+ if(!ledgerExpanded&&!ledgerBusy){
   ledgerCursor=(data.evidence_ledger_count||0)>10&&data.evidence_ledger?.length===10?data.evidence_ledger[9].event_id:null;
   $("ledger-more").hidden=!ledgerCursor;
   $("ledger-error").textContent="";
@@ -220,7 +220,10 @@ async function loadOlderLedger(){
   ledgerCursor=page.next_cursor;$("ledger-more").hidden=!ledgerCursor;
   $("ledger-error").textContent="";
  }catch(e){$("ledger-error").textContent=e.message||"Error de consulta"}
- finally{ledgerBusy=false;$("ledger-more").disabled=false}
+ finally{
+  ledgerBusy=false;$("ledger-more").disabled=false;
+  if(ledgerGapPending&&!ledgerRecovering)recoverLedgerGap();
+ }
 }
 $("ledger-more").addEventListener("click",loadOlderLedger);
 async function load(){
