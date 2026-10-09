@@ -34,6 +34,15 @@ function render(){
    detail.append(head,desc);
    if(t.acceptance_criteria){const criteria=node("ul");for(const criterion of t.acceptance_criteria)criteria.append(node("li",criterion));detail.append(criteria)}
    info.append(detail);
+   if(t.evidence&&t.evidence.length){
+    const evidence=node("details",undefined,"task-evidence"),heading=node("summary",t.evidence.length+" evidencias registradas"),items=node("ul");
+    for(const ref of t.evidence)items.append(node("li",ref));
+    evidence.append(heading,items);info.append(evidence)
+   }
+   if(t.updated_at){
+    const updated=new Date(t.updated_at);
+    if(!Number.isNaN(updated.getTime()))info.append(node("small","Última actualización: "+updated.toLocaleString("es-PE"),"task-updated"))
+   }
    const state=node("span",labels[t.state],"status "+t.state);
    const btn=node("button","Editar","edit");btn.type="button";btn.addEventListener("click",()=>edit(t));
    row.append(info,state,btn);details.append(row)
