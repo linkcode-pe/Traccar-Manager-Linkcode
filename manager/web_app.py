@@ -39,7 +39,7 @@ from manager.operational_health import operational_health
 from manager.operational_health_history import read_operational_health_history, read_operational_availability
 from manager.administrative_attention_history import read_administrative_attention_history, read_administrative_attention_metrics
 from manager.administrative_index_history import read_administrative_index_history
-from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, plan_source as progress_plan_source, ingest_event as progress_ingest_event, ProgressError
+from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, plan_source as progress_plan_source, ingest_event as progress_ingest_event, ledger_page as progress_ledger_page, ProgressError
 from manager.progress_page import PAGE as PROGRESS_PAGE
 from pathlib import Path as _ProgressPath
 from manager.account_profile import read_profile, save_profile, save_avatar, read_avatar, save_password, alert_unread, mark_alert_seen
@@ -2110,6 +2110,16 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_progress_get(page=True)
         elif path == "/api/progress":
             self._handle_progress_get()
+        elif path == "/api/progress/ledger":
+            principal = self._progress_principal()
+            if principal is not None:
+                try:
+                    cursor = query.get("before", [None])[0]
+                    self._json(HTTPStatus.OK, progress_ledger_page(principal, before=cursor))
+                except ProgressError:
+                    self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_cursor"})
+                except Exception:
+                    self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "progress_unavailable"})
         elif path == "/api/progress/plan":
             principal = self._progress_principal()
             if principal is not None:

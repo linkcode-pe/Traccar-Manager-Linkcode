@@ -259,3 +259,37 @@ def update(principal, payload):
                        (task_id,principal.subject_id,row["state"],state,now))
     finally: db.close()
     return snapshot(principal)
+
+
+def ledger_page(principal, *, before=None, limit=10):
+    """Bounded keyset pagination; only the authorized progress role may read."""
+    if not authorized(principal):
+        raise PermissionError('forbidden')
+    if type(limit) is not int or not 1 <= limit <= 25:
+        raise ProgressError('invalid limit')
+    if before is not None and (not isinstance(before, str) or not re.fullmatch(r'test-run-[a-f0-9]{24}', before)):
+        raise ProgressError('invalid cursor')
+    db = connect()
+    try:
+        try:
+            if before is not None:
+                cursor = db.execute("SELECT recorded_at,event_id FROM progress_evidence_ledger WHERE task_id='PROG-006' AND event_id=?", (before,)).fetchone()
+                if cursor is None:
+                    raise ProgressError('unknown cursor')
+                rows = db.execute("SELECT event_id,recorded_at,source_sha256,report_path,report_sha256,result FROM progress_evidence_ledger WHERE task_id='PROG-006' AND (recorded_at < ? OR (recorded_at = ? AND event_id < ?)) ORDER BY recorded_at DESC,event_id DESC LIMIT ?", (cursor['recorded_at'], cursor['recorded_at'], cursor['event_id'], limit + 1)).fetchall()
+            else:
+                rows = db.execute("SELECT event_id,recorded_at,source_sha256,report_path,report_sha256,result FROM progress_evidence_ledger WHERE task_id='PROG-006' ORDER BY recorded_at DESC,event_id DESC LIMIT ?", (limit + 1,)).fetchall()
+        except sqlite3.OperationalError as exc:
+            if 'no such table' not in str(exc):
+                raise
+            rows = []
+        more = len(rows) > limit
+        items = []
+        repo = Path(__file__).resolve().parent.parent
+        for row in rows[:limit]:
+            item = dict(row)
+            item['integrity'] = check_report(repo, item['report_path'], item['report_sha256'])
+            items.append(item)
+        return {'items': items, 'next_cursor': items[-1]['event_id'] if more else None}
+    finally:
+        db.close()

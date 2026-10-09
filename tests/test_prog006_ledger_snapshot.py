@@ -60,3 +60,25 @@ class LedgerSnapshotTests(unittest.TestCase):
     def test_integrity_summary_empty_when_no_table(self):
         result = progress.snapshot(self.allowed)
         self.assertEqual(sum(result['evidence_ledger_integrity'].values()), 0)
+
+    def test_keyset_pagination_and_authorization(self):
+        with progress.connect() as db:
+            for i in range(27):
+                record_success(db, **dict(self.args, event_id='test-run-' + format(i, '024x')))
+        first = progress.ledger_page(self.allowed)
+        self.assertEqual(len(first['items']), 10)
+        self.assertIsNotNone(first['next_cursor'])
+        second = progress.ledger_page(self.allowed, before=first['next_cursor'])
+        third = progress.ledger_page(self.allowed, before=second['next_cursor'])
+        self.assertEqual([len(x['items']) for x in (first, second, third)], [10, 10, 7])
+        self.assertIsNone(third['next_cursor'])
+        ids = [x['event_id'] for page in (first, second, third) for x in page['items']]
+        self.assertEqual(len(set(ids)), 27)
+        with self.assertRaises(PermissionError):
+            progress.ledger_page(self.denied)
+        with self.assertRaises(progress.ProgressError):
+            progress.ledger_page(self.allowed, before='not-a-cursor')
+        with self.assertRaises(progress.ProgressError):
+            progress.ledger_page(self.allowed, before='test-run-' + 'f' * 24)
+        with self.assertRaises(progress.ProgressError):
+            progress.ledger_page(self.allowed, limit=1000)

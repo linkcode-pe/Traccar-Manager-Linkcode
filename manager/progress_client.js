@@ -1,5 +1,5 @@
 "use strict";
-let tasks=[],selected=null;
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false;
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
@@ -82,6 +82,9 @@ function setData(data){
   ledger.append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
  }
  if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
+ ledgerCursor=(data.evidence_ledger||[]).length===10?data.evidence_ledger[9].event_id:null;
+ $("ledger-more").hidden=!ledgerCursor;
+ $("ledger-error").textContent="";
  $("percent").textContent=(data.percentage??0)+"%";
  $("developing").textContent=data.tasks.filter(t=>t.state==="in_development").length;
  $("testing").textContent=data.tasks.filter(t=>t.state==="in_testing").length;
@@ -90,6 +93,24 @@ function setData(data){
  if(data.plan)$("plan-version").textContent="Documento versionado · SHA256 "+data.plan.sha256.slice(0,12)+"…";
  render()
 }
+async function loadOlderLedger(){
+ if(!ledgerCursor||ledgerBusy)return;
+ ledgerBusy=true;$("ledger-more").disabled=true;
+ try{
+  const r=await fetch("/manager/api/progress/ledger?before="+encodeURIComponent(ledgerCursor),{credentials:"same-origin",cache:"no-store"});
+  if(!r.ok)throw new Error(r.status===401||r.status===403?"Acceso denegado o sesión caducada":"No se pudo consultar el historial");
+  const page=await r.json();
+  for(const entry of page.items){
+   const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
+   const labels={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"};
+   $("ledger-history").append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+(labels[entry.integrity]||"No comprobado")));
+  }
+  ledgerCursor=page.next_cursor;$("ledger-more").hidden=!ledgerCursor;
+  $("ledger-error").textContent="";
+ }catch(e){$("ledger-error").textContent=e.message||"Error de consulta"}
+ finally{ledgerBusy=false;$("ledger-more").disabled=false}
+}
+$("ledger-more").addEventListener("click",loadOlderLedger);
 async function load(){
  try{
   const r=await fetch("/manager/api/progress",{credentials:"same-origin",cache:"no-store"});
