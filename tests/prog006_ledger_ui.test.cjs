@@ -232,9 +232,35 @@ test('recovery refuses stale result when another poll advances the visible head'
  ui.data.evidence_ledger=[report(32),...Array.from({length:9},(_,i)=>report(30-i))];
  ui.data.evidence_ledger_count=23;
  await ui.poll();
- assert.equal(ui.element('ledger-history').childElementCount,13);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
  resolveRecovery({ok:true,json:async()=>({items:[report(31),report(30)],next_cursor:null})});
  await new Promise(setImmediate);
  assert.equal(ui.element('ledger-history').childElementCount,13);
- assert.match(ui.element('ledger-error').textContent,/historial cambió/);
+ assert.equal(ui.element('ledger-error').textContent,'');
+});
+
+test('failed gap recovery remains pending after count baseline advances',async()=>{
+ let calls=0;
+ const ui=setup(undefined,async()=>{calls++;return {ok:false,status:503}});
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=[report(34),report(33),report(30),...ui.data.evidence_ledger.slice(1,8)];
+ ui.data.evidence_ledger_count=26;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(calls,1);
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(calls,2);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+});
+test('simultaneous polls queue only one retry after recovery failure',async()=>{
+ let release,calls=0;
+ const ui=setup(undefined,async()=>{calls++;if(calls===1)return new Promise(resolve=>{release=resolve});return {ok:false,status:503}});
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));ui.data.evidence_ledger_count=37;
+ await ui.poll();await ui.poll();await ui.poll();
+ assert.equal(calls,1);
+ release({ok:false,status:503});
+ await new Promise(setImmediate);await new Promise(setImmediate);
+ assert.equal(calls,2);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.match(ui.element('ledger-error').textContent,/503/);
 });
