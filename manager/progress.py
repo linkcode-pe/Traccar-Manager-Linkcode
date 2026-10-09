@@ -145,7 +145,7 @@ def snapshot(principal):
         status_path = DB_PATH.parent / "prog006-run-status.json"
         try:
             raw = json.loads(status_path.read_text(encoding="utf-8"))
-            if isinstance(raw, dict) and raw.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed"):
+            if isinstance(raw, dict) and raw.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed", "running"):
                 runner_status = {k:raw.get(k) for k in ("last_run", "result", "source_sha256")}
         except (OSError, ValueError):
             pass
@@ -154,13 +154,19 @@ def snapshot(principal):
             history = json.loads((DB_PATH.parent / "prog006-run-history.json").read_text(encoding="utf-8"))
             if isinstance(history, list):
                 for item in history[:10]:
-                    if isinstance(item, dict) and item.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed"):
+                    if isinstance(item, dict) and item.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed", "running"):
                         runner_history.append({k:item.get(k) for k in ("last_run", "result")})
         except (OSError, ValueError):
             pass
         runner_alert = None
         if runner_status:
-            if runner_status["result"] not in ("passed", "skipped_unchanged"):
+            if runner_status["result"] == "running":
+                try:
+                    started = datetime.fromisoformat(runner_status["last_run"].replace("Z", "+00:00"))
+                    runner_alert = "running" if started.tzinfo and 0 <= (datetime.now(timezone.utc) - started).total_seconds() <= 300 else "stale"
+                except (TypeError, ValueError, AttributeError):
+                    runner_alert = "stale"
+            elif runner_status["result"] not in ("passed", "skipped_unchanged"):
                 runner_alert = "failed"
             else:
                 try:

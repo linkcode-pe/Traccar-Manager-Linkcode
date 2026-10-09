@@ -15,7 +15,10 @@ import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
 
+RUN_LOCK_ACQUIRED = False
+
 def main():
+    global RUN_LOCK_ACQUIRED
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", required=True)
     ap.add_argument("--timeout", type=int, default=180)
@@ -44,6 +47,7 @@ def main():
     except BlockingIOError:
         print("Another PROG-006 test run is active", file=sys.stderr)
         return 8
+    RUN_LOCK_ACQUIRED = True
     stamp = state_dir / "prog006-last-success.sha256"
     def status(result):
         if not args.apply:
@@ -71,6 +75,7 @@ def main():
         status("skipped_unchanged")
         print(json.dumps({"skipped": True, "reason": "unchanged_source", "source_sha256": source_before["sha256"]}))
         return 0
+    status("running")
     command = ["bash", str(repo / "scripts/run-isolated-tests.sh"), "-q"]
     try:
         completed = subprocess.run(command, cwd=repo, text=True, stdout=subprocess.PIPE,
@@ -119,7 +124,7 @@ def main():
 
 def record_unhandled_failure():
     """Best-effort status for crashes before normal status handling; never mask failure."""
-    if "--apply" not in sys.argv or os.geteuid() != 0:
+    if "--apply" not in sys.argv or os.geteuid() != 0 or not RUN_LOCK_ACQUIRED:
         return
     directory = Path("/var/lib/traccar-manager-progress")
     payload = {"last_run": datetime.now(timezone.utc).isoformat(), "result": "runner_failed", "source_sha256": None}

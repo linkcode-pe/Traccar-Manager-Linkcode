@@ -35,7 +35,8 @@ class RunnerAlertsTests(unittest.TestCase):
         real_path = Path
         with patch.object(runner, "Path", side_effect=lambda value: self.path if value == "/var/lib/traccar-manager-progress" else real_path(value)), \
              patch.object(runner.sys, "argv", [str(script), "--apply"]), \
-             patch.object(runner.os, "geteuid", return_value=0):
+             patch.object(runner.os, "geteuid", return_value=0), \
+             patch.object(runner, "RUN_LOCK_ACQUIRED", True):
             runner.record_unhandled_failure()
         status = json.loads((self.path / "prog006-run-status.json").read_text())
         history = json.loads((self.path / "prog006-run-history.json").read_text())
@@ -50,6 +51,22 @@ class RunnerAlertsTests(unittest.TestCase):
         runner = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(runner)
         with patch.object(runner.sys, "argv", [str(script)]):
+            runner.record_unhandled_failure()
+        self.assertFalse((self.path / "prog006-run-status.json").exists())
+
+    def test_running_is_not_a_success_and_becomes_stale(self):
+        self.write_status("running", datetime.now(timezone.utc).isoformat())
+        self.assertEqual(progress.snapshot(self.principal)["runner_alert"], "running")
+        self.write_status("running", (datetime.now(timezone.utc) - timedelta(minutes=6)).isoformat())
+        self.assertEqual(progress.snapshot(self.principal)["runner_alert"], "stale")
+
+    def test_runner_failure_without_lock_does_not_overwrite(self):
+        script = Path(__file__).resolve().parents[1] / "scripts/run-tests-with-progress.py"
+        spec = importlib.util.spec_from_file_location("prog006_runner_no_lock", script)
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+        with patch.object(runner.sys, "argv", [str(script), "--apply"]), \
+             patch.object(runner.os, "geteuid", return_value=0):
             runner.record_unhandled_failure()
         self.assertFalse((self.path / "prog006-run-status.json").exists())
 

@@ -82,3 +82,7 @@ Se incorporó `runner_failed` a los estados de lectura del panel y al historial.
 ## Pruebas de fallo interno aisladas (2026-10-09)
 
 Se añadieron dos pruebas a `tests/test_prog006_runner_alerts.py`: simulan `record_unhandled_failure()` con directorio temporal y comprueban que la API presenta `runner_failed` y alerta `failed`, y que sin `--apply` no se escribe estado. El laboratorio aislado ahora copia también `scripts/` para importar el ejecutor bajo prueba. Tras corregir esa dependencia, suite aislada completa exit 0 (~25 s). Se desplegaron únicamente los dos archivos revisados con respaldo, se ejecutó el servicio real de pruebas aisladas con `ExecMainStatus=0` y estado `passed`; salud web HTTP 200. No se indujo fallo productivo.
+
+## Ejecuciones incompletas y exclusión mutua (2026-10-09)
+
+El runner registra `running` después de adquirir el bloqueo y antes de lanzar pruebas, evitando que el estado anterior `passed` aparente corresponder a una ejecución activa. La API considera `running` reciente como aviso informativo y, si supera cinco minutos o tiene fecha inválida, `stale`. Los fallos inesperados solo intentan sobrescribir estado cuando el proceso adquirió el bloqueo (`RUN_LOCK_ACQUIRED`), evitando interferencia de un competidor. Diez pruebas de regresión específicas y suite completa aislada: exit 0. Despliegue selectivo con respaldo y ejecución productiva aislada: `ExecMainStatus=0`, estado final `passed`, salud HTTP 200. Una terminación forzosa puede dejar `running` hasta que el monitor la clasifique como atrasada.
