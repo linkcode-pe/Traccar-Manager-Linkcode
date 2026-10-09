@@ -22,3 +22,7 @@ El 2026-10-09 el runner completó correctamente la batería aislada, pero el rec
 5. Respaldar la base SQLite productiva, desplegar selectivamente, verificar `PRAGMA integrity_check`, y realizar una ejecución controlada sin borrar evidencia existente.
 
 **Estado:** diseño documentado. No autoriza incrementar el límite del checklist ni aplicar una migración a producción sin completar las pruebas.
+
+## Prototipo aislado implementado (2026-10-09)
+
+Se añadió `manager/progress_evidence_ledger.py` con `append(db, ...)` y creación idempotente de tabla en la conexión SQLite recibida. El módulo no está conectado al recorder ni es invocado por el servicio productivo. Requiere identificador `test-run-` con 24 hexadecimales, SHA256 completos y ruta relativa bajo `docs/test-runs/`. Rechaza conflictos del mismo ID y permite duplicados exactos sin crear filas. Cuatro pruebas con SQLite en memoria cubren >20 registros, idempotencia, conflicto, entradas inválidas y rollback ante trigger de fallo. Batería completa aislada: exit 0. **Pendiente:** integrar validación de reporte, transacción con evento de progreso y pruebas de concurrencia; no se ha migrado producción.
