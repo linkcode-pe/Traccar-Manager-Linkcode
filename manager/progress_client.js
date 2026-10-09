@@ -136,6 +136,7 @@ async function recoverLedgerGap(){
  ledgerRecovering=true;
  try{
   let cursor=null, pending=[],found=false;
+  const cursors=new Set();
   for(let n=0;n<10;n++){
    const url="/manager/api/progress/ledger"+(cursor?"?before="+encodeURIComponent(cursor):"");
    const r=await fetch(url,{credentials:"same-origin",cache:"no-store"});
@@ -157,6 +158,8 @@ async function recoverLedgerGap(){
    }
    if(found)break;
    if(!page.next_cursor)throw Error("No se encontró continuidad en el historial");
+   if(cursors.has(page.next_cursor))throw Error("Cursor repetido durante la sincronización");
+   cursors.add(page.next_cursor);
    cursor=page.next_cursor;
   }
   if(!found)throw Error("La sincronización excedió el límite seguro de páginas");
@@ -166,7 +169,7 @@ async function recoverLedgerGap(){
  finally{ledgerRecovering=false}
 }
 async function loadOlderLedger(){
- if(!ledgerCursor||ledgerBusy)return;
+ if(!ledgerCursor||ledgerBusy||ledgerRecovering)return;
  ledgerBusy=true;$("ledger-more").disabled=true;
  try{
   const r=await fetch("/manager/api/progress/ledger?before="+encodeURIComponent(ledgerCursor),{credentials:"same-origin",cache:"no-store"});

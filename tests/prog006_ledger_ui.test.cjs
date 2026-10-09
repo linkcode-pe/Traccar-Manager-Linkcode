@@ -19,7 +19,7 @@ function setup(ledgerFetch,recoveryFetch){
  const initial=Array.from({length:10},(_,i)=>report(30-i));
  const data={tasks:[],runner_status:null,runner_history:[],runner_alert:null,evidence_ledger:initial,evidence_ledger_count:22,evidence_ledger_integrity:{ok:22},percentage:0,verified:0,total:77};
  let poll;
- const context={document:{getElementById:element,createElement:()=>new Element(),visibilityState:'visible'},fetch:async url=>{requests.push(url);if(url==='/manager/api/progress/ledger'&&recoveryFetch)return recoveryFetch(url);if(url.includes('/ledger?'))return ledgerFetch?ledgerFetch(url):{ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})};if(url.endsWith('/plan'))return {ok:true,json:async()=>({markdown:'test'})};return {ok:true,json:async()=>data}},setInterval:cb=>{poll=cb},console};
+ const context={document:{getElementById:element,createElement:()=>new Element(),visibilityState:'visible'},fetch:async url=>{requests.push(url);if((url==='/manager/api/progress/ledger'||(recoveryFetch&&url.includes('/ledger?')&&url.includes('before=test-run-000000000000000000000024')))&&recoveryFetch)return recoveryFetch(url);if(url.includes('/ledger?'))return ledgerFetch?ledgerFetch(url):{ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})};if(url.endsWith('/plan'))return {ok:true,json:async()=>({markdown:'test'})};return {ok:true,json:async()=>data}},setInterval:cb=>{poll=cb},console};
  vm.createContext(context);vm.runInContext(fs.readFileSync('manager/progress_client.js','utf8'),context);
  return {element,requests,data,poll:()=>poll(),refresh:()=>vm.runInContext('setData('+JSON.stringify(data)+')',context)};
 }
@@ -160,4 +160,44 @@ test('automatically recovers missing evidence pages without replacing old rows',
  assert.equal(ui.element('ledger-error').textContent,'');
  assert.equal(ui.element('ledger-history').childElementCount,16);
  assert.equal(ui.element('ledger-history').children[4],old);
+});
+
+test('recovery spans two pages and keeps older rows intact',async()=>{
+ const urls=[];
+ const ui=setup(undefined,async url=>{
+  urls.push(url);
+  const items=url.includes('?before=')?[report(35),report(34),report(33),report(32),report(31),report(30)]:[report(45),report(44),report(43),report(42),report(41),report(40),report(39),report(38),report(37),report(36)];
+  return {ok:true,json:async()=>({items,next_cursor:url.includes('?before=')?null:report(36).event_id})};
+ });
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ const old=ui.element('ledger-history').children[0];
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));ui.data.evidence_ledger_count=37;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(urls.length,2);
+ assert.equal(ui.element('ledger-history').childElementCount,27);
+ assert.equal(ui.element('ledger-history').children[15],old);
+ assert.equal(ui.element('ledger-error').textContent,'');
+});
+test('recovery network failure is atomic and allows another poll to retry',async()=>{
+ let attempts=0;
+ const ui=setup(undefined,async()=>{attempts++;throw Error('Connection lost')});
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));ui.data.evidence_ledger_count=37;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.match(ui.element('ledger-error').textContent,/Connection lost/);
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(attempts,2);
+});
+test('concurrent polls do not duplicate recovery requests',async()=>{
+ let resolvePage,calls=0;
+ const ui=setup(undefined,async()=>{calls++;return new Promise(resolve=>{resolvePage=resolve})});
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));ui.data.evidence_ledger_count=37;
+ await ui.poll();await ui.poll();
+ assert.equal(calls,1);
+ resolvePage({ok:true,json:async()=>({items:[...Array.from({length:15},(_,i)=>report(45-i))],next_cursor:null})});
+ await new Promise(setImmediate);
+ assert.match(ui.element('ledger-error').textContent,/Respuesta inválida/);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
 });
