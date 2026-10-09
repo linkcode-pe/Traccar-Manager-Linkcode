@@ -39,6 +39,8 @@ from manager.operational_health import operational_health
 from manager.operational_health_history import read_operational_health_history, read_operational_availability
 from manager.administrative_attention_history import read_administrative_attention_history, read_administrative_attention_metrics
 from manager.administrative_index_history import read_administrative_index_history
+from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, ProgressError
+from manager.progress_page import PAGE as PROGRESS_PAGE
 from manager.account_profile import read_profile, save_profile, save_avatar, read_avatar, save_password, alert_unread, mark_alert_seen
 
 BIND_ADDRESS = "127.0.0.1"
@@ -882,6 +884,7 @@ body.authenticated #devices-overview .vehicle-type-image,.casefile-head #device-
 
 
 
+PAGE = PAGE.replace(b'</nav></aside>', '<a href="/manager/progress" style="display:block;padding:13px 10px;color:#54d7e8;text-decoration:none;font-weight:700">☑ Desarrollo y Progreso</a></nav></aside>'.encode('utf-8'), 1)
 APP_JS = r"""(() => {
   "use strict";
   const path = window.location.pathname.endsWith("/")
@@ -1531,6 +1534,7 @@ class ManagerHTTPServer(HTTPServer):
         self.audit_writer = audit_writer
         self.dashboard_api = dashboard_api if dashboard_api is not None else ManagerDashboardAPI()
         self.maintenance_api = maintenance_api if maintenance_api is not None else ManagerMaintenanceAPI()
+        progress_init()
         super().__init__((BIND_ADDRESS, port), ManagerRequestHandler)
         if self.server_address[0] != BIND_ADDRESS:
             self.server_close()
@@ -2004,6 +2008,47 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._json(status,{"error":"maintenance_unavailable","request_id":data["request_id"]}); return
         self._json(HTTPStatus.OK,result)
 
+    def _progress_principal(self):
+        _, principal = self._account_principal()
+        if principal is None:
+            self._json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+            return None
+        if not progress_authorized(principal):
+            self._json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+            return None
+        return principal
+
+    def _handle_progress_get(self, page=False):
+        principal = self._progress_principal()
+        if principal is None:
+            return
+        if page:
+            self._respond(HTTPStatus.OK, PROGRESS_PAGE.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        try:
+            self._json(HTTPStatus.OK, progress_snapshot(principal))
+        except Exception:
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "progress_unavailable"})
+
+    def _handle_progress_post(self):
+        principal = self._progress_principal()
+        if principal is None:
+            return
+        origin = self.headers.get("Origin")
+        if origin != "https://homecargps.com" or self.headers.get("X-Requested-With") != "TraccarManager":
+            self._json(HTTPStatus.FORBIDDEN, {"error": "origin_denied"})
+            return
+        payload = self._read_json_object(limit=16000)
+        try:
+            result = progress_update(principal, payload)
+        except (ProgressError, ValueError, TypeError):
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_progress_update"})
+            return
+        except Exception:
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "progress_unavailable"})
+            return
+        self._json(HTTPStatus.OK, result)
+
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
         path = parsed.path
@@ -2028,6 +2073,10 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
                     data=asset.read_bytes(); content_type="image/webp" if rel.endswith(".webp") else "image/svg+xml"; self.send_response(200); self.send_header("Content-Type",content_type); self.send_header("Cache-Control","public, max-age=31536000, immutable"); self.send_header("Content-Length",str(len(data))); self.end_headers(); self.wfile.write(data); return
             self._respond(HTTPStatus.NOT_FOUND, b"Not Found\n", "text/plain; charset=utf-8")
             return
+        elif path == "/progress":
+            self._handle_progress_get(page=True)
+        elif path == "/api/progress":
+            self._handle_progress_get()
         elif path == "/api/auth/me":
             self._handle_me()
         elif path == "/api/account/profile":
@@ -2074,7 +2123,9 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlsplit(self.path).path
-        if path == "/api/auth/login":
+        if path == "/api/progress":
+            self._handle_progress_post()
+        elif path == "/api/auth/login":
             self._handle_login()
         elif path == "/api/auth/logout":
             self._handle_logout()
