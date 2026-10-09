@@ -30,7 +30,7 @@ def main():
     repo = Path(__file__).resolve().parent.parent
     docs = (repo / "docs").resolve()
     report = Path(args.report).resolve()
-    if not report.is_relative_to(docs) or not report.is_file() or report.is_symlink():
+    if not report.is_relative_to(docs) or not report.is_file() or Path(args.report).is_symlink():
         ap.error("report must be an existing regular file under docs/")
     raw = report.read_bytes()
     if not raw or len(raw) > 200_000:

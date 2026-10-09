@@ -137,8 +137,10 @@ def snapshot(principal):
     db=connect()
     try:
         tasks=[]
+        last_events={row["task_id"]: {"source":row["source"], "state":row["state"], "recorded_at":row["recorded_at"]}
+                     for row in db.execute("SELECT e.task_id,e.source,e.state,e.recorded_at FROM progress_events e JOIN (SELECT task_id,MAX(rowid) AS last_id FROM progress_events GROUP BY task_id) latest ON e.rowid=latest.last_id")}
         for row in db.execute("SELECT * FROM tasks ORDER BY phase,task_id"):
-            d=dict(row);d["evidence"]=json.loads(d.pop("evidence"));d.update(task_spec(d["task_id"],d["title"],d["phase"]));tasks.append(d)
+            d=dict(row);d["evidence"]=json.loads(d.pop("evidence"));d["last_event"]=last_events.get(d["task_id"]);d.update(task_spec(d["task_id"],d["title"],d["phase"]));tasks.append(d)
         verified=sum(t["state"]=="verified" for t in tasks)
         return {"tasks":tasks,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}

@@ -39,6 +39,10 @@ function render(){
     for(const ref of t.evidence)items.append(node("li",ref));
     evidence.append(heading,items);info.append(evidence)
    }
+   if(t.last_event){
+    const eventDate=new Date(t.last_event.recorded_at),when=Number.isNaN(eventDate.getTime())?"":eventDate.toLocaleString("es-PE");
+    info.append(node("small","Último evento: "+t.last_event.source+(when?" · "+when:""),"task-updated"))
+   }
    if(t.updated_at){
     const updated=new Date(t.updated_at);
     if(!Number.isNaN(updated.getTime()))info.append(node("small","Última actualización: "+updated.toLocaleString("es-PE"),"task-updated"))
