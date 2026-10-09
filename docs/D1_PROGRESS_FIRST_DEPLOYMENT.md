@@ -49,3 +49,11 @@ Completar pruebas de POST, navegación real, criterios de aceptación y dependen
 - Se registró el evento real `PROG-006` en desarrollo; **no se marcó verificado**.
 - Pruebas HTTP aisladas: permiso, origen, idempotencia, persistencia y evidencia de verificación, aprobadas.
 - Pendiente: integración con GitHub Actions y prueba visual real.
+
+
+## Catálogo funcional ampliado — 2026-10-09
+- 45 capacidades nuevas en 5 módulos, con identificadores TRC/MNT/WAP/ADM/DEV.
+- Total del checklist: 77 tareas, incluidas 32 tareas técnicas anteriores.
+- Migración no destructiva mediante INSERT OR IGNORE; estados y evidencias previos conservados.
+- Fuente: `manager/progress_catalog.py`, documentada en Plan Maestro v2.5.
+- No se realizaron operaciones de limpieza MySQL, cambios en Traccar oficial ni envíos WhatsApp.

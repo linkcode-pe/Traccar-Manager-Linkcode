@@ -142,3 +142,18 @@ Publicación de **documentación únicamente**. No modifica la aplicación produ
 - Conectar GitHub/CI mediante un emisor autenticado de eventos, sin permitir que un commit por sí solo marque una tarea como verificada o desplegada.
 - Evidencia inicial: pruebas HTTP de permisos, origen, duplicados, persistencia y requisitos de verificación.
 - **Estado:** en desarrollo; integración con GitHub/CI y validación visual aún pendientes.
+
+
+## Catálogo funcional del checklist — versión 2.5 (2026-10-09)
+
+El Centro de Desarrollo agrupa capacidades visibles para el administrador, además de tareas técnicas internas. La fuente versionada del catálogo es `manager/progress_catalog.py`, incorporada al repositorio junto a este documento. Los identificadores funcionales son estables y cada tarea conserva estado, evidencias y auditoría en SQLite.
+
+| Módulo | Identificadores | Funcionalidades |
+|---|---|---|
+| Traccar oficial | TRC-001 a TRC-012 | API, vehículos, clientes, usuarios, posiciones, recorridos, eventos, geocercas, notificaciones, grupos, reportes, permisos |
+| Limpieza y mantenimiento | MNT-001 a MNT-010 | MySQL, logs, archivos temporales, retención, backups, restauración, recursos y auditoría |
+| WhatsApp | WAP-001 a WAP-011 | Proveedor, destinatarios, consentimiento, eventos, alertas, plantillas, respuestas, colas, historial, panel, pruebas |
+| Seguridad y administración | ADM-101 a ADM-106 | Accesos, roles, sesiones, auditoría, configuración, secretos |
+| Desarrollo y progreso | DEV-001 a DEV-006 | Checklist, evidencias, sincronización, CI, despliegues y documentación |
+
+**Regla de estado:** añadir una función al catálogo no demuestra su implementación. Todas las nuevas tareas comienzan pendientes; únicamente pruebas y evidencias verificables permiten acreditarlas. Las funciones de mantenimiento se ejecutan en módulos separados, nunca desde el checklist. El sistema conserva también las 32 tareas técnicas originales para continuidad del seguimiento.

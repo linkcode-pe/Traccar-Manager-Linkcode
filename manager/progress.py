@@ -5,6 +5,7 @@ import hashlib
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from manager.progress_catalog import FUNCTIONAL_GROUPS
 
 ROLE = "development.progress.manage"
 DB_PATH = Path("/var/lib/traccar-manager-progress/progress.sqlite3")
@@ -12,13 +13,15 @@ PLAN_PATH = Path(__file__).resolve().parent.parent / "docs/plan-maestro/PLAN_MAE
 STATES = ("pending", "in_development", "in_testing", "blocked", "verified")
 DOC_STATES = ("pending", "in_review", "verified", "not_applicable")
 GROUPS = {
+    **{phase: [task_id for task_id, _ in items] for phase, items in FUNCTIONAL_GROUPS.items()},
     "0 Auditoría": ["AUD-001","AUD-002","AUD-003","AUD-004"],
     "1 Seguridad y continuidad": [*(f"SEC-{i:03}" for i in range(1,10)),*(f"BCP-{i:03}" for i in range(1,4))],
     "2 Centro de progreso": [*(f"PROG-{i:03}" for i in range(1,7)),"DOC-001"],
     "3 Administración y operaciones": ["ADM-001","ADM-002","OPS-001","OPS-002","OPS-003"],
     "4 Integraciones": ["TEO-001","COM-001","COM-002","COM-003"],
 }
-TITLES = {
+TITLES = {task_id: title for items in FUNCTIONAL_GROUPS.values() for task_id, title in items}
+TITLES.update({
  "DOC-001":"Documentación viva obligatoria",
  "PROG-001":"Permiso exclusivo de superadministrador",
  "PROG-002":"Catálogo y persistencia del checklist",
@@ -30,7 +33,7 @@ TITLES = {
  "COM-002":"Consola administrativa del bot",
  "COM-003":"Mensajería, conversaciones y observabilidad",
  "SEC-009":"Revocación segura de sesiones",
-}
+})
 class ProgressError(ValueError):
     pass
 
@@ -67,6 +70,9 @@ def init():
                     db.execute("INSERT OR IGNORE INTO tasks VALUES (?,?,?,?,?,?,?)",
                       (task_id,phase,TITLES.get(task_id,task_id+" — pendiente de especificación"),
                        "pending","pending","[]",now))
+                    if task_id in TITLES:
+                        db.execute("UPDATE tasks SET title=?,phase=? WHERE task_id=?",
+                                   (TITLES[task_id],phase,task_id))
     finally:
         db.close()
 

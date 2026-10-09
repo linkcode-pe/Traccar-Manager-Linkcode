@@ -1,0 +1,61 @@
+"""Functional checklist catalog, versioned alongside the Plan Maestro.
+
+These are *planned capabilities*, not assertions of implementation.
+"""
+FUNCTIONAL_GROUPS = {
+    "0 Traccar oficial": [
+        ("TRC-001","Conexión con la API oficial de Traccar"),
+        ("TRC-002","Vehículos y dispositivos GPS"),
+        ("TRC-003","Clientes y usuarios de Traccar"),
+        ("TRC-004","Asignación de dispositivos a usuarios"),
+        ("TRC-005","Posiciones actuales y última conexión"),
+        ("TRC-006","Recorridos e historial de posiciones"),
+        ("TRC-007","Eventos y alertas GPS"),
+        ("TRC-008","Geocercas"),
+        ("TRC-009","Notificaciones y preferencias"),
+        ("TRC-010","Grupos de dispositivos"),
+        ("TRC-011","Reportes y estadísticas"),
+        ("TRC-012","Permisos y aislamiento entre clientes"),
+    ],
+    "1 Limpieza y mantenimiento": [
+        ("MNT-001","Diagnóstico de la base de datos MySQL"),
+        ("MNT-002","Previsualización segura de limpieza MySQL"),
+        ("MNT-003","Ejecución controlada de mantenimiento MySQL"),
+        ("MNT-004","Consulta y limpieza de archivos log"),
+        ("MNT-005","Archivos temporales, cachés y basura"),
+        ("MNT-006","Retención y limpieza programada"),
+        ("MNT-007","Copias de seguridad de base de datos"),
+        ("MNT-008","Restauración y pruebas de recuperación"),
+        ("MNT-009","Estado de disco, servicios y recursos"),
+        ("MNT-010","Auditoría y reversión de mantenimiento"),
+    ],
+    "2 WhatsApp y comunicaciones": [
+        ("WAP-001","Conexión con proveedor oficial de WhatsApp"),
+        ("WAP-002","Relación cliente, dispositivo y teléfono"),
+        ("WAP-003","Consentimiento, bajas y privacidad"),
+        ("WAP-004","Recepción de eventos GPS"),
+        ("WAP-005","Reglas de envío de alertas automáticas"),
+        ("WAP-006","Plantillas y mensajes aprobados"),
+        ("WAP-007","Conversaciones y respuestas automáticas"),
+        ("WAP-008","Colas, reintentos y límites"),
+        ("WAP-009","Historial y trazabilidad de mensajes"),
+        ("WAP-010","Panel administrativo del bot"),
+        ("WAP-011","Pruebas extremo a extremo y despliegue"),
+    ],
+    "3 Seguridad y administración": [
+        ("ADM-101","Inicio de sesión y gestión de cuentas"),
+        ("ADM-102","Superadministrador, roles y permisos"),
+        ("ADM-103","Revocación de sesiones y contraseñas"),
+        ("ADM-104","Auditoría de operaciones"),
+        ("ADM-105","Configuración del sistema"),
+        ("ADM-106","Protección de datos y secretos"),
+    ],
+    "4 Desarrollo y progreso": [
+        ("DEV-001","Checklist del Plan Maestro"),
+        ("DEV-002","Evidencias y criterios de aceptación"),
+        ("DEV-003","Sincronización automática de estados"),
+        ("DEV-004","Integración con GitHub y pruebas"),
+        ("DEV-005","Control de despliegues y versiones"),
+        ("DEV-006","Historial y documentación viva"),
+    ],
+}
