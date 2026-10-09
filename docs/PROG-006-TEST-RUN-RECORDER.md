@@ -62,3 +62,7 @@ El ejecutor guarda un estado JSON mínimo en `prog006-run-status.json` de manera
 ## Historial compacto de ejecuciones (2026-10-09)
 
 `prog006-run-history.json` conserva las últimas 20 ejecuciones del automatizador y se actualiza atómicamente, protegido por el mismo `flock`. La API autenticada expone como máximo 10 entradas con fecha y resultado, sin mostrar rutas ni logs. La interfaz muestra el historial en un desplegable compacto y actualizable. Despliegue con respaldo; pruebas productivas: resultado `passed` seguido de `skipped_unchanged`, ambos recuperados desde la API; salud HTTP 200; timer habilitado. Los eventos anteriores a esta mejora no se reconstruyen retroactivamente.
+
+## Alertas del automatizador (2026-10-09)
+
+La API autenticada calcula `runner_alert`: `failed` si el último resultado no es satisfactorio; `stale` si el último resultado satisfactorio supera 36 horas, tiene fecha inválida o futura; `missing` si no existe estado válido. El navegador presenta aviso visible con `role=status` y no ejecuta acciones administrativas. Prueba productiva con último resultado `skipped_unchanged`: `runner_alert=null`, historial 2 registros. Tras reiniciar Manager, una comprobación inmediata devolvió HTTP 503 transitorio; la repetición a los 3 segundos devolvió HTTP 200 con servicios activos.

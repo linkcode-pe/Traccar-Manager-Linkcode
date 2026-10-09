@@ -158,8 +158,21 @@ def snapshot(principal):
                         runner_history.append({k:item.get(k) for k in ("last_run", "result")})
         except (OSError, ValueError):
             pass
+        runner_alert = None
+        if runner_status:
+            if runner_status["result"] not in ("passed", "skipped_unchanged"):
+                runner_alert = "failed"
+            else:
+                try:
+                    checked = datetime.fromisoformat(runner_status["last_run"].replace("Z", "+00:00"))
+                    if checked.tzinfo is None or checked > datetime.now(timezone.utc) or (datetime.now(timezone.utc) - checked).total_seconds() > 36 * 3600:
+                        runner_alert = "stale"
+                except (TypeError, ValueError, AttributeError):
+                    runner_alert = "stale"
+        else:
+            runner_alert = "missing"
         verified=sum(t["state"]=="verified" for t in tasks)
-        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
+        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"runner_alert":runner_alert,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 
