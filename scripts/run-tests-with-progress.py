@@ -53,7 +53,7 @@ def main():
         target = state_dir / "prog006-run-status.json"
         temporary = state_dir / f".prog006-run-status.{os.getpid()}.tmp"
         temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
-        os.chmod(temporary, 0o600)
+        os.chmod(temporary, 0o644)
         os.replace(temporary, target)
     if args.skip_unchanged and args.apply and stamp.is_file() and stamp.read_text().strip() == source_before["sha256"]:
         status("skipped_unchanged")
