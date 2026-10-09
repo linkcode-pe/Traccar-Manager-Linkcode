@@ -7,6 +7,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from manager.progress_catalog import FUNCTIONAL_GROUPS
+from manager.progress_evidence_integrity import check_report
 
 ROLE = "development.progress.manage"
 DB_PATH = Path(os.environ.get("TRACCAR_MANAGER_PROGRESS_DB", "/var/lib/traccar-manager-progress/progress.sqlite3"))
@@ -163,25 +164,10 @@ def snapshot(principal):
         try:
             ledger_count = db.execute("SELECT COUNT(*) FROM progress_evidence_ledger WHERE task_id='PROG-006'").fetchone()[0]
             ledger_rows = db.execute("SELECT event_id,recorded_at,source_sha256,report_path,report_sha256,result FROM progress_evidence_ledger WHERE task_id='PROG-006' ORDER BY recorded_at DESC,event_id DESC LIMIT 10").fetchall()
-            report_root = (Path(__file__).resolve().parent.parent / "docs" / "test-runs").resolve()
+            repo = Path(__file__).resolve().parent.parent
             for entry in ledger_rows:
                 item = dict(entry)
-                relative = item["report_path"]
-                valid_path = isinstance(relative, str) and re.fullmatch(r"docs/test-runs/[A-Za-z0-9._-]{1,180}\.md", relative)
-                integrity = "missing"
-                if valid_path:
-                    candidate = report_root / relative.rsplit("/", 1)[-1]
-                    if candidate.is_file() and not candidate.is_symlink():
-                        try:
-                            if candidate.stat().st_size <= 200000:
-                                integrity = "ok" if hashlib.sha256(candidate.read_bytes()).hexdigest() == item["report_sha256"] else "mismatch"
-                            else:
-                                integrity = "invalid"
-                        except OSError:
-                            integrity = "unavailable"
-                else:
-                    integrity = "invalid"
-                item["integrity"] = integrity
+                item["integrity"] = check_report(repo, item["report_path"], item["report_sha256"])
                 evidence_ledger.append(item)
         except sqlite3.OperationalError as exc:
             if "no such table" not in str(exc):
