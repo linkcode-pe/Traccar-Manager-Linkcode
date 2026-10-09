@@ -1,0 +1,21 @@
+[Unit]
+Description=Traccar Manager PROG-006 controlled source-change test
+After=local-fs.target
+ConditionPathExists=/opt/traccar-manager/scripts/run-tests-with-progress.py
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/traccar-manager
+ExecStart=/usr/bin/python3 /opt/traccar-manager/scripts/run-tests-with-progress.py --task PROG-006 --apply --skip-unchanged
+TimeoutStartSec=240
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ReadWritePaths=/opt/traccar-manager/docs/test-runs /var/lib/traccar-manager-progress /tmp
+StandardOutput=journal
+StandardError=journal

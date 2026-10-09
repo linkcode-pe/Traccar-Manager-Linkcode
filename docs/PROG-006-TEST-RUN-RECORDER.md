@@ -48,3 +48,9 @@ Se instalaron `source-manifest.py`, `run-tests-with-progress.py` y `progress-rec
 ## Bloqueo y omisión por código sin cambios (2026-10-09)
 
 El ejecutor mantiene un bloqueo `flock` no bloqueante en `/var/lib/traccar-manager-progress/prog006-test-run.lock` durante toda la prueba y el registro. La opción `--skip-unchanged` (con `--apply`) evita repetir una ejecución exitosa si el manifiesto coincide con `/var/lib/traccar-manager-progress/prog006-last-success.sha256`; solo escribe la huella después de que la aplicación del evento haya terminado con código 0. Ejecución productiva con código 0 y evento `test-run-c65b0261842be779e3367e17`; segunda invocación devolvió `skipped:true` por huella idéntica. No se ha configurado un timer automático todavía.
+
+## Temporizador productivo habilitado (2026-10-09)
+
+Se instaló y activó `traccar-manager-prog006-tests.timer`, ejecución diaria `OnCalendar=*-*-* 04:30:00` (zona horaria local del servidor, Perú), retardo aleatorio máximo 5 minutos, `Persistent=false`. Servicio `oneshot` limitado a `PROG-006`, `--apply --skip-unchanged`, timeout 240 segundos, `Nice=10`, `NoNewPrivileges`, restricciones de filesystem, salida al journal. Prueba manual mediante `systemctl start traccar-manager-prog006-tests.service`: `Result=success`, `ExecMainStatus=0`, `skipped:true` por fuente sin cambios; salud HTTP 200. Primer disparo programado reportado por systemd: 2026-10-10 04:32:31 -05. El servicio se ejecuta como root para separar la prueba de la escritura SQLite, delegada al usuario `traccar-manager-web`; no debe exponerse su arranque a usuarios web.
+
+Diagnóstico: `systemctl status traccar-manager-prog006-tests.timer`; `journalctl -u traccar-manager-prog006-tests.service -n 50 --no-pager`. Para suspender: `systemctl disable --now traccar-manager-prog006-tests.timer`. Los archivos versionados se encuentran en `deploy/systemd/`.
