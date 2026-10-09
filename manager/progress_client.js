@@ -73,6 +73,9 @@ function setData(data){
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
  const ledger=$("ledger-history");ledger.replaceChildren();
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
+ const integrity=data.evidence_ledger_integrity||{};
+ const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
+ $("ledger-integrity").textContent=(integrity.ok||0)+" evidencias íntegras · "+issues+" con incidencias (faltantes, alteradas o inaccesibles)";
  for(const entry of (data.evidence_ledger||[])){
   const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
   const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";

@@ -47,3 +47,16 @@ class LedgerSnapshotTests(unittest.TestCase):
         result = progress.snapshot(self.allowed)
         self.assertEqual(result['evidence_ledger_count'], 13)
         self.assertEqual(len(result['evidence_ledger']), 10)
+
+    def test_integrity_summary_detects_missing_and_tampered(self):
+        with progress.connect() as db:
+            record_success(db, **self.args)
+            record_success(db, **dict(self.args, event_id='test-run-' + 'b' * 24,
+                                      report_path='docs/test-runs/PROG-006-other.md'))
+        result = progress.snapshot(self.allowed)
+        self.assertEqual(result['evidence_ledger_integrity']['missing'], 2)
+        self.assertEqual(result['evidence_ledger_count'], 2)
+
+    def test_integrity_summary_empty_when_no_table(self):
+        result = progress.snapshot(self.allowed)
+        self.assertEqual(sum(result['evidence_ledger_integrity'].values()), 0)

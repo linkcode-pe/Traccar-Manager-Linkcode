@@ -161,14 +161,17 @@ def snapshot(principal):
             pass
         evidence_ledger = []
         ledger_count = 0
+        ledger_integrity = {"ok": 0, "missing": 0, "mismatch": 0, "invalid": 0, "unavailable": 0}
         try:
             ledger_count = db.execute("SELECT COUNT(*) FROM progress_evidence_ledger WHERE task_id='PROG-006'").fetchone()[0]
-            ledger_rows = db.execute("SELECT event_id,recorded_at,source_sha256,report_path,report_sha256,result FROM progress_evidence_ledger WHERE task_id='PROG-006' ORDER BY recorded_at DESC,event_id DESC LIMIT 10").fetchall()
+            ledger_rows = db.execute("SELECT event_id,recorded_at,source_sha256,report_path,report_sha256,result FROM progress_evidence_ledger WHERE task_id='PROG-006' ORDER BY recorded_at DESC,event_id DESC").fetchall()
             repo = Path(__file__).resolve().parent.parent
             for entry in ledger_rows:
                 item = dict(entry)
                 item["integrity"] = check_report(repo, item["report_path"], item["report_sha256"])
-                evidence_ledger.append(item)
+                ledger_integrity[item["integrity"]] += 1
+                if len(evidence_ledger) < 10:
+                    evidence_ledger.append(item)
         except sqlite3.OperationalError as exc:
             if "no such table" not in str(exc):
                 raise
@@ -192,7 +195,7 @@ def snapshot(principal):
         else:
             runner_alert = "missing"
         verified=sum(t["state"]=="verified" for t in tasks)
-        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"evidence_ledger":evidence_ledger,"evidence_ledger_count":ledger_count,"runner_alert":runner_alert,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
+        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"evidence_ledger":evidence_ledger,"evidence_ledger_count":ledger_count,"evidence_ledger_integrity":ledger_integrity,"runner_alert":runner_alert,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 
