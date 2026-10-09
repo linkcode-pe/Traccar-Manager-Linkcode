@@ -86,3 +86,7 @@ Se añadieron dos pruebas a `tests/test_prog006_runner_alerts.py`: simulan `reco
 ## Ejecuciones incompletas y exclusión mutua (2026-10-09)
 
 El runner registra `running` después de adquirir el bloqueo y antes de lanzar pruebas, evitando que el estado anterior `passed` aparente corresponder a una ejecución activa. La API considera `running` reciente como aviso informativo y, si supera cinco minutos o tiene fecha inválida, `stale`. Los fallos inesperados solo intentan sobrescribir estado cuando el proceso adquirió el bloqueo (`RUN_LOCK_ACQUIRED`), evitando interferencia de un competidor. Diez pruebas de regresión específicas y suite completa aislada: exit 0. Despliegue selectivo con respaldo y ejecución productiva aislada: `ExecMainStatus=0`, estado final `passed`, salud HTTP 200. Una terminación forzosa puede dejar `running` hasta que el monitor la clasifique como atrasada.
+
+## Exclusión mutua entre procesos (2026-10-09)
+
+Se extrajo `acquire_run_lock(state_dir)` para reutilizar exactamente la adquisición `flock(LOCK_EX|LOCK_NB)` del runner en una prueba con dos procesos reales. El primero conserva el descriptor y el segundo recibe `None`; al cerrar el descriptor inicial, puede adquirirse nuevamente. Once pruebas específicas y suite completa aislada: exit 0. Despliegue selectivo con respaldo, ejecución de unidad productiva de pruebas aisladas `ExecMainStatus=0`, estado final `passed`, HTTP 200. No se ejecutaron dos instancias productivas simultáneas.

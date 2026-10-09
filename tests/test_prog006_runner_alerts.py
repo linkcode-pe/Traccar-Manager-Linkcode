@@ -1,6 +1,7 @@
 """PROG-006 monitor regression using disposable SQLite and status files only."""
 import json
 import importlib.util
+import multiprocessing
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -69,6 +70,36 @@ class RunnerAlertsTests(unittest.TestCase):
              patch.object(runner.os, "geteuid", return_value=0):
             runner.record_unhandled_failure()
         self.assertFalse((self.path / "prog006-run-status.json").exists())
+
+    def test_competing_process_cannot_acquire_same_lock(self):
+        script = Path(__file__).resolve().parents[1] / "scripts/run-tests-with-progress.py"
+        spec = importlib.util.spec_from_file_location("prog006_lock_test", script)
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+        first = runner.acquire_run_lock(self.path)
+        self.assertIsNotNone(first)
+        try:
+            ctx = multiprocessing.get_context("fork")
+            queue = ctx.Queue()
+            def contender():
+                second = runner.acquire_run_lock(self.path)
+                queue.put(second is None)
+                if second is not None:
+                    second.close()
+            proc = ctx.Process(target=contender)
+            proc.start()
+            proc.join(timeout=5)
+            if proc.is_alive():
+                proc.terminate()
+                proc.join()
+                self.fail("Contender hung")
+            self.assertEqual(proc.exitcode, 0)
+            self.assertTrue(queue.get(timeout=2))
+        finally:
+            first.close()
+        retry = runner.acquire_run_lock(self.path)
+        self.assertIsNotNone(retry)
+        retry.close()
 
     def test_missing_status_warns(self):
         self.assertEqual(progress.snapshot(self.principal)["runner_alert"], "missing")

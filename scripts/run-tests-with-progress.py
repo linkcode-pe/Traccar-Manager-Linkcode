@@ -17,6 +17,16 @@ from pathlib import Path
 
 RUN_LOCK_ACQUIRED = False
 
+def acquire_run_lock(state_dir):
+    """Acquire an exclusive nonblocking OS lock; caller retains returned handle."""
+    handle = open(state_dir / "prog006-test-run.lock", "a+")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
+
 def main():
     global RUN_LOCK_ACQUIRED
     ap = argparse.ArgumentParser()
@@ -40,11 +50,8 @@ def main():
     spec.loader.exec_module(module)
     source_before = module.manifest(repo)
     state_dir = Path("/var/lib/traccar-manager-progress") if args.apply else Path("/tmp")
-    lock_file = state_dir / "prog006-test-run.lock"
-    lock = open(lock_file, "a+")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
+    lock = acquire_run_lock(state_dir)
+    if lock is None:
         print("Another PROG-006 test run is active", file=sys.stderr)
         return 8
     RUN_LOCK_ACQUIRED = True
