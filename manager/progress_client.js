@@ -17,7 +17,12 @@ function render(){
   const details=node("details",undefined,"phase");details.dataset.phase=phase;details.open=Boolean(query||filter||expanded.has(phase));
   const summary=node("summary"),title=node("span",phase.replace(/^\d+\s+/,""),"phase-title");
   const completed=all.filter(t=>t.state==="verified").length;
-  const counts=node("span",completed+"/"+all.length,"phase-count");
+  const developing=all.filter(t=>t.state==="in_development").length;
+  const testing=all.filter(t=>t.state==="in_testing").length;
+  const counts=node("span",undefined,"phase-summary-counts");
+  if(developing)counts.append(node("span",developing+" desarrollo","working"));
+  if(testing)counts.append(node("span",testing+" pruebas","testing"));
+  counts.append(node("span",completed+"/"+all.length+" verificadas"));
   const meter=node("span",undefined,"phase-meter"),fill=node("span");fill.style.width=(completed/all.length*100)+"%";meter.append(fill);
   summary.append(title,counts,meter);details.append(summary);
   for(const t of shown){
@@ -25,6 +30,10 @@ function render(){
    const title=node("strong",t.task_id+" · "+(t.title.startsWith(t.task_id+" — pendiente")?"Por especificar":t.title));
    const meta=node("small","Documentación: "+docLabels[t.doc_state]+" · "+t.evidence.length+" evidencias");
    info.append(title,meta);
+   const detail=node("details",undefined,"task-spec"),head=node("summary","Ver alcance y criterios"),desc=node("p",t.description||"Especificación pendiente");
+   detail.append(head,desc);
+   if(t.acceptance_criteria){const criteria=node("ul");for(const criterion of t.acceptance_criteria)criteria.append(node("li",criterion));detail.append(criteria)}
+   info.append(detail);
    const state=node("span",labels[t.state],"status "+t.state);
    const btn=node("button","Editar","edit");btn.type="button";btn.addEventListener("click",()=>edit(t));
    row.append(info,state,btn);details.append(row)
@@ -37,8 +46,9 @@ function render(){
 function setData(data){
  tasks=data.tasks;
  $("percent").textContent=(data.percentage??0)+"%";
- $("verified").textContent=data.verified;
- $("total").textContent=data.total;
+ $("developing").textContent=data.tasks.filter(t=>t.state==="in_development").length;
+ $("testing").textContent=data.tasks.filter(t=>t.state==="in_testing").length;
+ $("verified-total").textContent=data.verified+" / "+data.total;
  $("bar").value=data.percentage||0;
  if(data.plan)$("plan-version").textContent="Documento versionado · SHA256 "+data.plan.sha256.slice(0,12)+"…";
  render()

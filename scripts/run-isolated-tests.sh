@@ -25,9 +25,9 @@ PY
 if [[ $(id -u) -eq 0 ]]; then
   chown -R nobody:nogroup "$LAB"
   cd "$LAB"
-  exec_cmd=(runuser -u nobody -- env PYTHONDONTWRITEBYTECODE=1 "$ROOT/.venv/bin/python" -m pytest -q -p no:cacheprovider)
+  exec_cmd=(runuser -u nobody -- env PYTHONDONTWRITEBYTECODE=1 TRACCAR_MANAGER_PROGRESS_DB="$LAB/progress.sqlite3" "$ROOT/.venv/bin/python" -m pytest -q -p no:cacheprovider)
 else
   cd "$LAB"
-  exec_cmd=(env PYTHONDONTWRITEBYTECODE=1 "$ROOT/.venv/bin/python" -m pytest -q -p no:cacheprovider)
+  exec_cmd=(env PYTHONDONTWRITEBYTECODE=1 TRACCAR_MANAGER_PROGRESS_DB="$LAB/progress.sqlite3" "$ROOT/.venv/bin/python" -m pytest -q -p no:cacheprovider)
 fi
 "${exec_cmd[@]}" "$@"

@@ -157,3 +157,9 @@ El Centro de Desarrollo agrupa capacidades visibles para el administrador, adem�
 | Desarrollo y progreso | DEV-001 a DEV-006 | Checklist, evidencias, sincronización, CI, despliegues y documentación |
 
 **Regla de estado:** añadir una función al catálogo no demuestra su implementación. Todas las nuevas tareas comienzan pendientes; únicamente pruebas y evidencias verificables permiten acreditarlas. Las funciones de mantenimiento se ejecutan en módulos separados, nunca desde el checklist. El sistema conserva también las 32 tareas técnicas originales para continuidad del seguimiento.
+
+### Detalle funcional de las tareas — especificación inicial
+
+El catálogo contiene 77 tareas con títulos legibles, descripciones y tres criterios iniciales de aceptación por tarea, accesibles desde cada fila del Centro de Desarrollo. Los criterios específicos de seguridad, mantenimiento, Traccar oficial y WhatsApp se derivan del tipo de módulo. La fuente versionada es `manager/progress.py` (`TITLES` y `task_spec`) y `manager/progress_catalog.py`.
+
+**Importante:** estos criterios son una base inicial, no sustituyen las especificaciones detalladas ni pruebas reales. No se marca ninguna funcionalidad como verificada sin evidencia. El indicador de avance verificado no debe confundirse con el número de tareas en desarrollo.

@@ -57,3 +57,10 @@ Completar pruebas de POST, navegación real, criterios de aceptación y dependen
 - Migración no destructiva mediante INSERT OR IGNORE; estados y evidencias previos conservados.
 - Fuente: `manager/progress_catalog.py`, documentada en Plan Maestro v2.5.
 - No se realizaron operaciones de limpieza MySQL, cambios en Traccar oficial ni envíos WhatsApp.
+
+## Especificaciones iniciales del checklist (2026-10-09)
+- Se sustituyen 22 títulos técnicos genéricos por nombres legibles; las 77 tareas tienen título específico.
+- Cada tarea muestra una descripción y tres criterios iniciales de aceptación (231 criterios en total).
+- Los criterios son guías de revisión por módulo; **no** equivalen a pruebas ejecutadas ni certificación de implementación.
+- Los estados, evidencias y porcentajes de verificación permanecen inalterados; el trabajo iniciado se muestra según su estado real.
+- Pruebas aisladas: catálogo de 77 tareas, 231 criterios, conservación de estado e imposibilidad de inferir verificación.
