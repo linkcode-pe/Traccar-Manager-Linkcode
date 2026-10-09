@@ -1,5 +1,8 @@
 """Ledger regression tests: disposable in-memory SQLite only."""
 import sqlite3
+import tempfile
+import threading
+from pathlib import Path
 import unittest
 from manager.progress_evidence_ledger import append
 
@@ -87,3 +90,65 @@ class AtomicEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'verified'):
             record_success(self.db, **self.args)
         self.assertEqual(self.db.execute('SELECT count(*) FROM progress_events').fetchone()[0], 0)
+
+
+class LedgerConcurrencyAndBackupTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp.name)
+        self.db_path = self.path / 'progress.sqlite3'
+        db = sqlite3.connect(self.db_path)
+        db.execute('CREATE TABLE tasks(task_id TEXT PRIMARY KEY,state TEXT,doc_state TEXT,evidence TEXT,updated_at TEXT)')
+        db.execute("INSERT INTO tasks VALUES ('PROG-006','pending','pending','[\"historical\"]','old')")
+        db.execute('CREATE TABLE progress_events(event_id TEXT PRIMARY KEY,task_id TEXT,source TEXT,actor TEXT,state TEXT,recorded_at TEXT)')
+        db.execute('CREATE TABLE history(id INTEGER PRIMARY KEY,task_id TEXT,actor TEXT,old_state TEXT,new_state TEXT,changed_at TEXT)')
+        db.commit()
+        db.close()
+        self.args = dict(event_id='test-run-' + 'f' * 24, task_id='PROG-006', source_sha256='b' * 64,
+                         report_path='docs/test-runs/PROG-006-test.md', report_sha256='c' * 64)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_two_connections_race_same_event(self):
+        from manager.progress_evidence_ledger import record_success
+        barrier = threading.Barrier(2)
+        results = []
+        errors = []
+        def worker():
+            try:
+                db = sqlite3.connect(self.db_path, timeout=5)
+                barrier.wait(timeout=5)
+                results.append(record_success(db, **self.args))
+                db.close()
+            except Exception as exc:
+                errors.append(exc)
+        threads = [threading.Thread(target=worker) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=8)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertFalse(errors, repr(errors))
+        self.assertCountEqual(results, [True, False])
+        with sqlite3.connect(self.db_path) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM progress_events').fetchone()[0], 1)
+            self.assertEqual(db.execute('SELECT count(*) FROM progress_evidence_ledger').fetchone()[0], 1)
+            self.assertEqual(db.execute('SELECT count(*) FROM history').fetchone()[0], 1)
+
+    def test_sqlite_backup_and_restore_preserves_evidence(self):
+        from manager.progress_evidence_ledger import record_success
+        backup_path = self.path / 'backup.sqlite3'
+        restored_path = self.path / 'restored.sqlite3'
+        with sqlite3.connect(self.db_path) as db:
+            record_success(db, **self.args)
+            with sqlite3.connect(backup_path) as backup:
+                db.backup(backup)
+        with sqlite3.connect(backup_path) as backup, sqlite3.connect(restored_path) as restored:
+            backup.backup(restored)
+        with sqlite3.connect(restored_path) as db:
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+            self.assertEqual(db.execute('SELECT evidence FROM tasks').fetchone()[0], '["historical"]')
+            self.assertEqual(db.execute('SELECT count(*) FROM progress_evidence_ledger').fetchone()[0], 1)
+            self.assertEqual(db.execute('SELECT count(*) FROM progress_events').fetchone()[0], 1)
+            self.assertFalse(record_success(db, **self.args))

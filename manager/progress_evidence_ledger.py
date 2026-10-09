@@ -55,7 +55,12 @@ def record_success(db: sqlite3.Connection, *, event_id: str, task_id: str,
         raise ValueError('invalid digest')
     if not re.fullmatch(r'docs/test-runs/[A-Za-z0-9._-]{1,180}\.md', report_path):
         raise ValueError('invalid report path')
+    # Serialize the read/check/insert sequence across independent SQLite connections.
+    # Fail rather than participate in an already-open caller transaction.
+    if db.in_transaction:
+        raise ValueError('connection must not have an open transaction')
     with db:
+        db.execute('BEGIN IMMEDIATE')
         db.execute(CREATE)
         task = db.execute('SELECT state FROM tasks WHERE task_id=?', (task_id,)).fetchone()
         if task is None:
