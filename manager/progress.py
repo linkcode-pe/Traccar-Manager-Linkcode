@@ -149,8 +149,17 @@ def snapshot(principal):
                 runner_status = {k:raw.get(k) for k in ("last_run", "result", "source_sha256")}
         except (OSError, ValueError):
             pass
+        runner_history = []
+        try:
+            history = json.loads((DB_PATH.parent / "prog006-run-history.json").read_text(encoding="utf-8"))
+            if isinstance(history, list):
+                for item in history[:10]:
+                    if isinstance(item, dict) and item.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed"):
+                        runner_history.append({k:item.get(k) for k in ("last_run", "result")})
+        except (OSError, ValueError):
+            pass
         verified=sum(t["state"]=="verified" for t in tasks)
-        return {"tasks":tasks,"runner_status":runner_status,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
+        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 

@@ -58,3 +58,7 @@ Diagnóstico: `systemctl status traccar-manager-prog006-tests.timer`; `journalct
 ## Monitor de ejecución en el Centro de Desarrollo
 
 El ejecutor guarda un estado JSON mínimo en `prog006-run-status.json` de manera atómica después de terminar u omitir una ejecución, y la API autenticada de progreso devuelve `runner_status` para mostrar fecha y resultado en la web. La interfaz no revela el diario del sistema ni habilita controles para ejecutar pruebas. La ventana diaria es informativa y no pretende mostrar el instante exacto que systemd elegirá aleatoriamente. Despliegue productivo con copia de seguridad, prueba de servicio `Result=success`, API recupera estado y HTTP 200.
+
+## Historial compacto de ejecuciones (2026-10-09)
+
+`prog006-run-history.json` conserva las últimas 20 ejecuciones del automatizador y se actualiza atómicamente, protegido por el mismo `flock`. La API autenticada expone como máximo 10 entradas con fecha y resultado, sin mostrar rutas ni logs. La interfaz muestra el historial en un desplegable compacto y actualizable. Despliegue con respaldo; pruebas productivas: resultado `passed` seguido de `skipped_unchanged`, ambos recuperados desde la API; salud HTTP 200; timer habilitado. Los eventos anteriores a esta mejora no se reconstruyen retroactivamente.

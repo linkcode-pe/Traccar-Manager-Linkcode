@@ -55,6 +55,18 @@ def main():
         temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
         os.chmod(temporary, 0o644)
         os.replace(temporary, target)
+        history = state_dir / "prog006-run-history.json"
+        try:
+            entries = json.loads(history.read_text(encoding="utf-8"))
+            if not isinstance(entries, list):
+                entries = []
+        except (OSError, ValueError):
+            entries = []
+        entries = ([payload] + [item for item in entries if isinstance(item, dict)])[:20]
+        history_tmp = state_dir / f".prog006-run-history.{os.getpid()}.tmp"
+        history_tmp.write_text(json.dumps(entries, sort_keys=True), encoding="utf-8")
+        os.chmod(history_tmp, 0o644)
+        os.replace(history_tmp, history)
     if args.skip_unchanged and args.apply and stamp.is_file() and stamp.read_text().strip() == source_before["sha256"]:
         status("skipped_unchanged")
         print(json.dumps({"skipped": True, "reason": "unchanged_source", "source_sha256": source_before["sha256"]}))
