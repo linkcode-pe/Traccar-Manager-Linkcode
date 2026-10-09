@@ -1,12 +1,14 @@
 """PROG-001 persistent progress checklist, independent of official Traccar."""
 import json
 import re
+import hashlib
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROLE = "development.progress.manage"
 DB_PATH = Path("/var/lib/traccar-manager-progress/progress.sqlite3")
+PLAN_PATH = Path(__file__).resolve().parent.parent / "docs/plan-maestro/PLAN_MAESTRO_TRACCAR_MANAGER_ACTUALIZADO.md"
 STATES = ("pending", "in_development", "in_testing", "blocked", "verified")
 DOC_STATES = ("pending", "in_review", "verified", "not_applicable")
 GROUPS = {
@@ -64,6 +66,12 @@ def init():
     finally:
         db.close()
 
+def plan_source():
+    content = PLAN_PATH.read_text(encoding="utf-8")
+    if len(content) > 200000:
+        raise ProgressError("plan too large")
+    return {"markdown": content, "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(), "source": "docs/plan-maestro/PLAN_MAESTRO_TRACCAR_MANAGER_ACTUALIZADO.md"}
+
 def snapshot(principal):
     if not authorized(principal): raise PermissionError("forbidden")
     db=connect()
@@ -72,7 +80,7 @@ def snapshot(principal):
         for row in db.execute("SELECT * FROM tasks ORDER BY phase,task_id"):
             d=dict(row);d["evidence"]=json.loads(d.pop("evidence"));tasks.append(d)
         verified=sum(t["state"]=="verified" for t in tasks)
-        return {"tasks":tasks,"verified":verified,"total":len(tasks),
+        return {"tasks":tasks,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 

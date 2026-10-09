@@ -39,8 +39,9 @@ from manager.operational_health import operational_health
 from manager.operational_health_history import read_operational_health_history, read_operational_availability
 from manager.administrative_attention_history import read_administrative_attention_history, read_administrative_attention_metrics
 from manager.administrative_index_history import read_administrative_index_history
-from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, ProgressError
+from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, plan_source as progress_plan_source, ProgressError
 from manager.progress_page import PAGE as PROGRESS_PAGE
+from pathlib import Path as _ProgressPath
 from manager.account_profile import read_profile, save_profile, save_avatar, read_avatar, save_password, alert_unread, mark_alert_seen
 
 BIND_ADDRESS = "127.0.0.1"
@@ -2058,6 +2059,11 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
         elif path == "/health":
             payload = json.dumps(HEALTH, separators=(",", ":")).encode("ascii")
             self._respond(HTTPStatus.OK, payload, "application/json")
+        elif path == "/progress-client.js":
+            principal = self._progress_principal()
+            if principal is not None:
+                data = (_ProgressPath(__file__).parent / "progress_client.js").read_bytes()
+                self._respond(HTTPStatus.OK, data, "application/javascript; charset=utf-8")
         elif path == "/app.js":
             self._respond(HTTPStatus.OK, APP_JS, "application/javascript; charset=utf-8")
         elif path == "/brand-icon.svg":
@@ -2077,6 +2083,10 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             self._handle_progress_get(page=True)
         elif path == "/api/progress":
             self._handle_progress_get()
+        elif path == "/api/progress/plan":
+            principal = self._progress_principal()
+            if principal is not None:
+                self._json(HTTPStatus.OK, progress_plan_source())
         elif path == "/api/auth/me":
             self._handle_me()
         elif path == "/api/account/profile":
