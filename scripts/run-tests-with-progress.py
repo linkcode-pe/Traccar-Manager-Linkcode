@@ -117,5 +117,37 @@ def main():
     status("passed" if result.returncode == 0 else "record_failed")
     return result.returncode
 
+def record_unhandled_failure():
+    """Best-effort status for crashes before normal status handling; never mask failure."""
+    if "--apply" not in sys.argv or os.geteuid() != 0:
+        return
+    directory = Path("/var/lib/traccar-manager-progress")
+    payload = {"last_run": datetime.now(timezone.utc).isoformat(), "result": "runner_failed", "source_sha256": None}
+    for name, value in (("prog006-run-status.json", payload),):
+        temp = directory / f".{name}.{os.getpid()}.tmp"
+        temp.write_text(json.dumps(value, sort_keys=True), encoding="utf-8")
+        os.chmod(temp, 0o644)
+        os.replace(temp, directory / name)
+    history = directory / "prog006-run-history.json"
+    try:
+        entries = json.loads(history.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            entries = []
+    except (OSError, ValueError):
+        entries = []
+    temp = directory / f".prog006-run-history.{os.getpid()}.tmp"
+    temp.write_text(json.dumps(([payload] + [x for x in entries if isinstance(x, dict)])[:20]), encoding="utf-8")
+    os.chmod(temp, 0o644)
+    os.replace(temp, history)
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        try:
+            record_unhandled_failure()
+        except Exception:
+            traceback.print_exc()
+        raise SystemExit(1)

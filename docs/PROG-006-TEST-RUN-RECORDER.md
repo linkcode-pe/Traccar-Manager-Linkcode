@@ -74,3 +74,7 @@ La API autenticada calcula `runner_alert`: `failed` si el último resultado no e
 ## Integración productiva de la regresión de alertas (2026-10-09)
 
 Se comprobó que `tests/test_prog006_runner_alerts.py` estaba versionado pero ausente en `/opt/traccar-manager/tests`; se instaló como archivo nuevo root:root modo 0644. Se ejecutó manualmente la unidad `traccar-manager-prog006-tests.service`, que copia las pruebas al laboratorio aislado y las ejecuta con pytest como `nobody`. Resultado `ExecMainStatus=0`, registro idempotente aplicado `test-run-6c0992ab6cec2fa77cc4b0e0`, fuente SHA256 `7c6912714d7f5e0cdca4606c6d1f9f21e9e3f504c234ebc5d2d9d4ac9a9a9ba3`, reporte `docs/test-runs/PROG-006-7c6912714d7f-cb01ad9e8460.md`, salud HTTP 200. El timer permanece habilitado. No se modificaron Traccar core ni MySQL.
+
+## Fallos internos del ejecutor (2026-10-09)
+
+Se incorporó `runner_failed` a los estados de lectura del panel y al historial. Si el ejecutor termina con excepción no controlada en modo `--apply`, intenta persistir de forma atómica un estado de fallo y devuelve código 1, sin certificar pruebas. Este registro es de mejor esfuerzo: errores de permisos, falta de disco o finalización forzosa pueden impedirlo; la alerta por ausencia de ejecuciones sigue cubriendo retrasos. Despliegue con respaldo y ejecución productiva normal exit 0; no se indujeron fallos reales en producción.

@@ -59,7 +59,7 @@ function render(){
 function setData(data){
  tasks=data.tasks;
  const run=data.runner_status;
- const descriptions={passed:"Pruebas aprobadas y evento registrado",skipped_unchanged:"Sin cambios; ejecución omitida",tests_failed:"Pruebas fallidas",source_changed:"Código modificado durante las pruebas",record_failed:"No se pudo registrar el evento"};
+ const descriptions={passed:"Pruebas aprobadas y evento registrado",skipped_unchanged:"Sin cambios; ejecución omitida",tests_failed:"Pruebas fallidas",source_changed:"Código modificado durante las pruebas",record_failed:"No se pudo registrar el evento",runner_failed:"Error interno del automatizador"};
  const date=run?.last_run?new Date(run.last_run):null;
  $("runner-status").textContent=run?((descriptions[run.result]||"Estado desconocido")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString("es-PE"):"")):"Sin ejecución registrada en el monitor";
  const alert=$("runner-alert"),alerts={failed:"Atención: la última ejecución falló. Revisar el registro del servicio.",stale:"Atención: sin ejecución reciente válida durante más de 36 horas.",missing:"Atención: no se encontró estado del automatizador."};
