@@ -70,3 +70,7 @@ La API autenticada calcula `runner_alert`: `failed` si el último resultado no e
 ## Regresión de alertas en laboratorio aislado (2026-10-09)
 
 `tests/test_prog006_runner_alerts.py` añade seis pruebas con base SQLite y archivos de estado temporales, cubriendo falta de estado, fallos, retraso de 37 horas, fecha futura, éxito/omisión recientes y límite/saneamiento de historial. Primera invocación detectó que faltaba `progress.init()` en la preparación de la base aislada; se corrigió. Segunda invocación: 6 pruebas OK. Suite completa mediante `scripts/run-isolated-tests.sh -q`: exit 0 (~25 s). No se modificó la base de producción.
+
+## Integración productiva de la regresión de alertas (2026-10-09)
+
+Se comprobó que `tests/test_prog006_runner_alerts.py` estaba versionado pero ausente en `/opt/traccar-manager/tests`; se instaló como archivo nuevo root:root modo 0644. Se ejecutó manualmente la unidad `traccar-manager-prog006-tests.service`, que copia las pruebas al laboratorio aislado y las ejecuta con pytest como `nobody`. Resultado `ExecMainStatus=0`, registro idempotente aplicado `test-run-6c0992ab6cec2fa77cc4b0e0`, fuente SHA256 `7c6912714d7f5e0cdca4606c6d1f9f21e9e3f504c234ebc5d2d9d4ac9a9a9ba3`, reporte `docs/test-runs/PROG-006-7c6912714d7f-cb01ad9e8460.md`, salud HTTP 200. El timer permanece habilitado. No se modificaron Traccar core ni MySQL.
