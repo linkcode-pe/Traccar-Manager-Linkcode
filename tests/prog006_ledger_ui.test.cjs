@@ -13,13 +13,13 @@ class Element {
  addEventListener(type,cb){this['on'+type]=cb}
 }
 function report(i){return {event_id:'test-run-'+i.toString(16).padStart(24,'0'),recorded_at:'2026-10-09T18:00:00Z',result:'passed',report_sha256:'a'.repeat(64),integrity:'ok'}}
-function setup(ledgerFetch){
+function setup(ledgerFetch,recoveryFetch){
  const nodes=new Map(), requests=[];
  const element=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id)};
  const initial=Array.from({length:10},(_,i)=>report(30-i));
  const data={tasks:[],runner_status:null,runner_history:[],runner_alert:null,evidence_ledger:initial,evidence_ledger_count:22,evidence_ledger_integrity:{ok:22},percentage:0,verified:0,total:77};
  let poll;
- const context={document:{getElementById:element,createElement:()=>new Element(),visibilityState:'visible'},fetch:async url=>{requests.push(url);if(url.includes('/ledger?'))return ledgerFetch?ledgerFetch(url):{ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})};if(url.endsWith('/plan'))return {ok:true,json:async()=>({markdown:'test'})};return {ok:true,json:async()=>data}},setInterval:cb=>{poll=cb},console};
+ const context={document:{getElementById:element,createElement:()=>new Element(),visibilityState:'visible'},fetch:async url=>{requests.push(url);if(url==='/manager/api/progress/ledger'&&recoveryFetch)return recoveryFetch(url);if(url.includes('/ledger?'))return ledgerFetch?ledgerFetch(url):{ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})};if(url.endsWith('/plan'))return {ok:true,json:async()=>({markdown:'test'})};return {ok:true,json:async()=>data}},setInterval:cb=>{poll=cb},console};
  vm.createContext(context);vm.runInContext(fs.readFileSync('manager/progress_client.js','utf8'),context);
  return {element,requests,data,poll:()=>poll(),refresh:()=>vm.runInContext('setData('+JSON.stringify(data)+')',context)};
 }
@@ -134,6 +134,7 @@ test('more than ten new records trigger a gap warning without corrupting old pag
  await ui.poll();
  assert.equal(ui.element('ledger-history').childElementCount,12);
  assert.deepEqual(ui.element('ledger-history').children,original);
+ await new Promise(setImmediate);
  assert.match(ui.element('ledger-error').textContent,/Actualiza la página/);
 });
 test('count gap prevents partial insertion even when an older ID overlaps',async()=>{
@@ -143,5 +144,20 @@ test('count gap prevents partial insertion even when an older ID overlaps',async
  ui.data.evidence_ledger_count=30;
  await ui.poll();
  assert.equal(ui.element('ledger-history').childElementCount,12);
+ await new Promise(setImmediate);
  assert.match(ui.element('ledger-error').textContent,/Actualiza la página/);
+});
+
+test('automatically recovers missing evidence pages without replacing old rows',async()=>{
+ const ui=setup(async()=>({ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})}),
+  async()=>({ok:true,json:async()=>({items:[report(34),report(33),report(32),report(31),report(30)],next_cursor:null})}));
+ await new Promise(setImmediate);
+ await ui.element('ledger-more').onclick();
+ const old=ui.element('ledger-history').children[0];
+ ui.data.evidence_ledger=[report(34),report(33),report(30),...ui.data.evidence_ledger.slice(1,8)];
+ ui.data.evidence_ledger_count=26;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(ui.element('ledger-error').textContent,'');
+ assert.equal(ui.element('ledger-history').childElementCount,16);
+ assert.equal(ui.element('ledger-history').children[4],old);
 });

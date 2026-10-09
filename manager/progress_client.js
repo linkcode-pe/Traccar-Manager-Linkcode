@@ -1,5 +1,5 @@
 "use strict";
-let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map(),ledgerLastCount=null;
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map(),ledgerLastCount=null,ledgerRecovering=false;
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
@@ -100,7 +100,7 @@ function setData(data){
    const fresh=latest.slice(0,overlap);
    const countGap=ledgerLastCount!==null&&currentCount!==null&&currentCount-ledgerLastCount>fresh.length;
    if(countGap){
-    $("ledger-error").textContent="Hay evidencias nuevas fuera del historial cargado. Actualiza la página para sincronizarlo.";
+    recoverLedgerGap();
    }else{
    const prefix=[];
    for(const entry of fresh){
@@ -110,7 +110,7 @@ function setData(data){
    if(prefix.length)ledger.prepend(...prefix);
    }
   }else if(latest.some(entry=>!ledgerSeen.has(entry.event_id))){
-   $("ledger-error").textContent="Hay evidencias nuevas fuera del historial cargado. Actualiza la página para sincronizarlo.";
+   recoverLedgerGap();
   }
  }
  if(currentCount!==null)ledgerLastCount=currentCount;
@@ -130,6 +130,40 @@ function setData(data){
  $("bar").value=data.percentage||0;
  if(data.plan)$("plan-version").textContent="Documento versionado · SHA256 "+data.plan.sha256.slice(0,12)+"…";
  render()
+}
+async function recoverLedgerGap(){
+ if(ledgerRecovering||ledgerBusy)return;
+ ledgerRecovering=true;
+ try{
+  let cursor=null, pending=[],found=false;
+  for(let n=0;n<10;n++){
+   const url="/manager/api/progress/ledger"+(cursor?"?before="+encodeURIComponent(cursor):"");
+   const r=await fetch(url,{credentials:"same-origin",cache:"no-store"});
+   if(!r.ok)throw Error("No se pudo sincronizar el historial ("+r.status+")");
+   const page=await r.json();
+   if(!page||!Array.isArray(page.items)||page.items.length>10||
+      (page.next_cursor!==null&&!/^test-run-[a-f0-9]{24}$/.test(page.next_cursor))||
+      !page.items.every(e=>e&&/^test-run-[a-f0-9]{24}$/.test(e.event_id)&&
+       typeof e.recorded_at==="string"&&typeof e.result==="string"&&
+       /^[a-f0-9]{64}$/.test(e.report_sha256)&&
+       ["ok","missing","mismatch","invalid","unavailable"].includes(e.integrity))||
+      new Set(page.items.map(e=>e.event_id)).size!==page.items.length||
+      (page.next_cursor!==null&&page.next_cursor!==page.items[page.items.length-1]?.event_id))
+     throw Error("Respuesta inválida durante la sincronización");
+   for(const entry of page.items){
+    if(ledgerSeen.has(entry.event_id)){found=true;break}
+    if(pending.some(e=>e.event_id===entry.event_id))throw Error("Evidencias repetidas durante la sincronización");
+    pending.push(entry);
+   }
+   if(found)break;
+   if(!page.next_cursor)throw Error("No se encontró continuidad en el historial");
+   cursor=page.next_cursor;
+  }
+  if(!found)throw Error("La sincronización excedió el límite seguro de páginas");
+  if(pending.length)$("ledger-history").prepend(...pending.map(trackLedger));
+  $("ledger-error").textContent="";
+ }catch(e){$("ledger-error").textContent="No se pudo sincronizar automáticamente: "+e.message+". Actualiza la página."}
+ finally{ledgerRecovering=false}
 }
 async function loadOlderLedger(){
  if(!ledgerCursor||ledgerBusy)return;
