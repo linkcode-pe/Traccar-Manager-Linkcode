@@ -1,6 +1,6 @@
 # PLAN MAESTRO — TRACCAR MANAGER LINKCODE
 
-**Versión:** 2.1 (checklist integral del Centro de Desarrollo y Progreso)
+**Versión:** 2.2 (documentación viva obligatoria)
 **Fecha:** 2026-10-09  
 **Estado:** Documento de planificación. No representa funcionalidades implementadas ni autorización de despliegue.
 
@@ -44,7 +44,7 @@ Las nuevas funcionalidades requieren diagnóstico, diseño, desarrollo aislado, 
 
 **Requisito obligatorio confirmado por el propietario:** la web de Traccar Manager tendrá un **checklist interactivo y completo de todo el proceso de construcción y evolución del proyecto**, visible exclusivamente para el superadministrador en el **Centro de Desarrollo y Progreso**. Debe mostrar cómo queremos que funcione Traccar Manager, qué está implementado, qué falta y qué está validado; no será solo una lista estática de ideas.
 
-**Estructura del checklist:** fases > módulos > funcionalidades > tareas y subtareas verificables, incluyendo AUD, SEC, BCP, PROG, ADM, OPS, TEO y COM (bot de WhatsApp). Cada elemento debe tener identificador estable, descripción, criterios de aceptación, prioridad, responsable cuando corresponda, dependencias, fecha de actualización y referencias a evidencias.
+**Estructura del checklist:** fases > módulos > funcionalidades > tareas y subtareas verificables, incluyendo AUD, SEC, BCP, PROG, DOC, ADM, OPS, TEO y COM (bot de WhatsApp). Cada elemento debe tener identificador estable, descripción, criterios de aceptación, prioridad, responsable cuando corresponda, dependencias, fecha de actualización y referencias a evidencias.
 
 **Estados:** pendiente, en desarrollo, en pruebas, bloqueado y completado/verificado. Solo se marcará como completado cuando se cumplan criterios de aceptación y existan pruebas o evidencias verificables. El estado de una tarea no se deduce exclusivamente de la existencia de código o de una afirmación del asistente.
 
@@ -60,13 +60,32 @@ Las nuevas funcionalidades requieren diagnóstico, diseño, desarrollo aislado, 
 
 Interfaz administrativa moderna, segura y comprensible. Separación del Traccar oficial. GitHub como respaldo y registro documental. Autonomía de desarrollo en entornos aislados; producción solo con autorización expresa.
 
+### DOC-001 — Documentación viva y actualización obligatoria
+
+**Requisito obligatorio confirmado por el propietario:** Traccar Manager debe contar con documentación funcional y técnica versionada, que se mantenga **actualizada con cada cambio del proyecto**. La documentación es parte del entregable, no una actividad opcional posterior.
+
+**Cobertura mínima según el tipo de cambio:**
+
+- **Funcional:** objetivos, comportamiento, pantallas, procedimientos de uso y limitaciones de cada módulo.
+- **Técnica:** arquitectura, contratos API, integraciones con Traccar oficial, modelos de datos, dependencias y configuración no secreta.
+- **Seguridad:** permisos, autenticación, auditoría, protección de datos y decisiones de riesgo.
+- **Operación:** instalación, actualizaciones, respaldos, recuperación, rollback y diagnósticos.
+- **Evolución:** registro de cambios, versiones, incidencias relevantes, decisiones, pruebas y commits asociados.
+- **Plan Maestro:** actualizar tareas, criterios de aceptación, checklist, estado y progreso del Centro de Desarrollo y Progreso.
+
+**Regla de cierre:** ninguna actualización se considera **completada/verificada** sin documentación correspondiente actualizada, pruebas aplicables y evidencias trazables. En el checklist de cada tarea se deberá mostrar el estado documental (pendiente, en revisión, actualizado/verificado) y enlaces a sus archivos o registros. Si un cambio no requiere modificar un documento concreto, registrar una justificación revisable de «no aplica»; no simular cumplimiento.
+
+**Control de versiones y publicación:** conservar la documentación junto al código en GitHub, mediante commits revisables. Los documentos deben identificar versión, fecha, alcance y estado; evitar credenciales, tokens y datos personales. Antes de un despliegue autorizado, comprobar que las instrucciones operativas y de recuperación corresponden a la versión a instalar. Los cambios urgentes requieren documentación y cierre posterior verificable, sin declarar el trabajo completado prematuramente.
+
+**Criterios de aceptación:** (1) cada cambio significativo tiene documentación asociada; (2) los documentos relevantes reflejan el comportamiento probado; (3) el checklist impide marcar «completado» sin evidencia documental o justificación válida; (4) las versiones y decisiones son rastreables en GitHub; (5) se detectan y corrigen referencias obsoletas.
+
 ## 3. Líneas técnicas del Plan Maestro (propuestas sujetas a validación)
 
 | Fase | IDs | Objetivo | Condición de cierre |
 |---|---|---|---|
 | 0 | AUD-001 a AUD-004 | Registro de hallazgos, línea base, responsables, aceptación y rollback | Evidencias verificables y aprobación |
 | 1 | SEC-001 a SEC-009, BCP-001 a BCP-003 | Autenticación, permisos, sesiones, endurecimiento, respaldos y recuperación | Tests de regresión, restauración ensayada y revisión |
-| 2 | PROG-001 a PROG-005 | Centro de Desarrollo y Progreso | Control de acceso y trazabilidad demostrados |
+| 2 | PROG-001 a PROG-005, DOC-001 | Centro de Desarrollo y Progreso y documentación viva | Control de acceso, trazabilidad y documentación verificada |
 | 3 | ADM-001/002, OPS-001/002/003 | Administración, diagnóstico y operaciones | Pruebas funcionales y controles de seguridad |
 | 4 | TEO-001, COM-001 a COM-003 | Evolución técnica e integraciones, especialmente WhatsApp | Validación de privacidad, proveedor y pruebas extremo a extremo |
 
