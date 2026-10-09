@@ -82,3 +82,17 @@ class LedgerSnapshotTests(unittest.TestCase):
             progress.ledger_page(self.allowed, before='test-run-' + 'f' * 24)
         with self.assertRaises(progress.ProgressError):
             progress.ledger_page(self.allowed, limit=1000)
+
+    def test_new_records_do_not_shift_existing_pages(self):
+        with progress.connect() as db:
+            for i in range(23):
+                record_success(db, **dict(self.args, event_id='test-run-' + format(i, '024x')))
+        first = progress.ledger_page(self.allowed)
+        with progress.connect() as db:
+            record_success(db, **dict(self.args, event_id='test-run-' + 'f' * 24))
+        second = progress.ledger_page(self.allowed, before=first['next_cursor'])
+        third = progress.ledger_page(self.allowed, before=second['next_cursor'])
+        original = [x['event_id'] for page in (first, second, third) for x in page['items']]
+        self.assertEqual(len(original), 23)
+        self.assertEqual(len(set(original)), 23)
+        self.assertNotIn('test-run-' + 'f' * 24, original)

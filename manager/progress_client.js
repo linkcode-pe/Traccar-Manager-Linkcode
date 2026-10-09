@@ -1,5 +1,5 @@
 "use strict";
-let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false;
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false;
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
@@ -71,20 +71,23 @@ function setData(data){
   history.append(node("li",when+" · "+(descriptions[entry.result]||"Estado desconocido")));
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
- const ledger=$("ledger-history");ledger.replaceChildren();
+ const ledger=$("ledger-history");
+ if(!ledgerExpanded)ledger.replaceChildren();
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
  $("ledger-integrity").textContent=(integrity.ok||0)+" evidencias íntegras · "+issues+" con incidencias (faltantes, alteradas o inaccesibles)";
- for(const entry of (data.evidence_ledger||[])){
+ for(const entry of (ledgerExpanded?[]:(data.evidence_ledger||[]))){
   const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
   const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
   ledger.append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
  }
  if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
- ledgerCursor=(data.evidence_ledger||[]).length===10?data.evidence_ledger[9].event_id:null;
- $("ledger-more").hidden=!ledgerCursor;
- $("ledger-error").textContent="";
+ if(!ledgerExpanded){
+  ledgerCursor=(data.evidence_ledger_count||0)>10&&data.evidence_ledger?.length===10?data.evidence_ledger[9].event_id:null;
+  $("ledger-more").hidden=!ledgerCursor;
+  $("ledger-error").textContent="";
+ }
  $("percent").textContent=(data.percentage??0)+"%";
  $("developing").textContent=data.tasks.filter(t=>t.state==="in_development").length;
  $("testing").textContent=data.tasks.filter(t=>t.state==="in_testing").length;
@@ -105,6 +108,7 @@ async function loadOlderLedger(){
    const labels={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"};
    $("ledger-history").append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+(labels[entry.integrity]||"No comprobado")));
   }
+  ledgerExpanded=true;
   ledgerCursor=page.next_cursor;$("ledger-more").hidden=!ledgerCursor;
   $("ledger-error").textContent="";
  }catch(e){$("ledger-error").textContent=e.message||"Error de consulta"}
