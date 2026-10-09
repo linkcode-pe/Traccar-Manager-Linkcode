@@ -124,3 +124,24 @@ test('poll updates integrity labels in place without reordering or duplicating',
  assert.match(ui.element('ledger-history').children[0].textContent,/test-run-00000000000000000000001f/);
  assert.equal(ui.element('ledger-history').children[1],before[0]);
 });
+
+test('more than ten new records trigger a gap warning without corrupting old pages',async()=>{
+ const ui=setup();await new Promise(setImmediate);
+ await ui.element('ledger-more').onclick();
+ const original=ui.element('ledger-history').children.slice();
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));
+ ui.data.evidence_ledger_count=37;
+ await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.deepEqual(ui.element('ledger-history').children,original);
+ assert.match(ui.element('ledger-error').textContent,/Actualiza la página/);
+});
+test('count gap prevents partial insertion even when an older ID overlaps',async()=>{
+ const ui=setup();await new Promise(setImmediate);
+ await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=[report(34),report(33),report(30),...ui.data.evidence_ledger.slice(1,8)];
+ ui.data.evidence_ledger_count=30;
+ await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.match(ui.element('ledger-error').textContent,/Actualiza la página/);
+});

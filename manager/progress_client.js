@@ -1,5 +1,5 @@
 "use strict";
-let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map();
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map(),ledgerLastCount=null;
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
@@ -83,12 +83,13 @@ function setData(data){
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
  const ledger=$("ledger-history");
- if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear()}
+ if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear();ledgerLastCount=null}
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
  $("ledger-integrity").textContent=(integrity.ok||0)+" evidencias íntegras · "+issues+" con incidencias (faltantes, alteradas o inaccesibles)";
  const latest=data.evidence_ledger||[];
+ const currentCount=Number.isSafeInteger(data.evidence_ledger_count)?data.evidence_ledger_count:null;
  if(ledgerExpanded&&latest.length){
   for(const entry of latest){
    const old=ledgerNodes.get(entry.event_id);
@@ -97,16 +98,22 @@ function setData(data){
   const overlap=latest.findIndex(entry=>ledgerSeen.has(entry.event_id));
   if(overlap>=0){
    const fresh=latest.slice(0,overlap);
+   const countGap=ledgerLastCount!==null&&currentCount!==null&&currentCount-ledgerLastCount>fresh.length;
+   if(countGap){
+    $("ledger-error").textContent="Hay evidencias nuevas fuera del historial cargado. Actualiza la página para sincronizarlo.";
+   }else{
    const prefix=[];
    for(const entry of fresh){
     if(ledgerSeen.has(entry.event_id))continue;
     prefix.push(trackLedger(entry));
    }
    if(prefix.length)ledger.prepend(...prefix);
+   }
   }else if(latest.some(entry=>!ledgerSeen.has(entry.event_id))){
    $("ledger-error").textContent="Hay evidencias nuevas fuera del historial cargado. Actualiza la página para sincronizarlo.";
   }
  }
+ if(currentCount!==null)ledgerLastCount=currentCount;
  for(const entry of (ledgerExpanded?[]:latest)){
   ledger.append(trackLedger(entry));
  }
