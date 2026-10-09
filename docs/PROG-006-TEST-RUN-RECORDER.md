@@ -22,3 +22,9 @@ Validación de laboratorio 2026-10-09: ejecución terminada con código 0, infor
 El ejecutor ahora admite `--apply` únicamente después de obtener el código de salida real 0 de `run-isolated-tests.sh`. La escritura se realiza con identidad no root y permisos sobre el SQLite de progreso; el registrador rechaza degradar una tarea ya verificada. Sin `--apply` continúa el modo vista previa.
 
 Validación E2E aislada (2026-10-09): repositorio copiado bajo cuenta `nobody`, base SQLite temporal, batería completa sin fallos, evento aplicado `test-run-a04474ba09d1c39d9541d315`, estado PROG-006 `in_testing`, documentación `in_review`, 1 evento persistido. Producción no recibió el evento de esta prueba. Pendiente habilitar ejecutor de confianza y automatizar el disparador, sin exponer el permiso de escritura a la interfaz pública.
+
+## Primer evento productivo controlado — 2026-10-09
+
+Se instaló el ejecutor en `/opt/traccar-manager/scripts/` y se invocó manualmente como root `python3 scripts/run-tests-with-progress.py --task PROG-006 --apply`. La batería aislada finalizó con código 0, el registrador escribió como `traccar-manager-web`, evento `test-run-ac86f28e2f62e950da2fdab9`, informe `docs/test-runs/PROG-006-a83ef92751ad-8f0cd00aa481.md`. Verificación posterior: PROG-006 `in_testing`, documentación `in_review`, último evento visible en snapshot, 0/77 verificadas y HTTP 200. Se respaldó SQLite antes de ejecutar. El HEAD del checkout productivo (`a83ef92751ad`) no incluye todavía los cambios sin confirmar de su árbol de trabajo; no interpretar el SHA como identificación íntegra del código probado. No se configuró ejecución periódica.
+
+Para evitar escrituras arbitrarias, `--apply` requiere root y restringe actualmente la tarea a PROG-006; el registro se delega a la cuenta de servicio sin privilegios de root. La aceptación funcional sigue pendiente.

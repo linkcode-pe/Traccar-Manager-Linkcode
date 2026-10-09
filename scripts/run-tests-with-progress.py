@@ -5,6 +5,7 @@ Never accepts a claimed test exit code. Does not update production by default.
 """
 import argparse
 import hashlib
+import os
 import json
 import re
 import subprocess
@@ -22,6 +23,10 @@ def main():
         ap.error("invalid task")
     if not 30 <= args.timeout <= 600:
         ap.error("timeout out of bounds")
+    if args.apply and args.task != "PROG-006":
+        ap.error("automatic production writes currently restricted to PROG-006")
+    if args.apply and os.geteuid() != 0:
+        ap.error("production apply requires root-controlled execution")
     repo = Path(__file__).resolve().parent.parent
     revision = subprocess.check_output(["git", "-c", f"safe.directory={repo}", "-C", str(repo), "rev-parse", "--short=12", "HEAD"], text=True).strip()
     command = ["bash", str(repo / "scripts/run-isolated-tests.sh"), "-q"]
@@ -55,6 +60,8 @@ def main():
                 "--task", args.task, "--report", str(report), "--revision", revision, "--exit-code", "0"]
     if args.apply:
         recorder.append("--apply")
+        recorder = ["runuser", "-u", "traccar-manager-web", "--", "env",
+                    f"PYTHONPATH={repo}", "PYTHONDONTWRITEBYTECODE=1", *recorder]
     result = subprocess.run(recorder, cwd=repo, check=False)
     return result.returncode
 
