@@ -27,6 +27,14 @@ def acquire_run_lock(state_dir):
         return None
     return handle
 
+def previous_run_interrupted(state_dir):
+    """Only a new lock owner may call this to classify abandoned running state."""
+    try:
+        raw = json.loads((state_dir / "prog006-run-status.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(raw, dict) and raw.get("result") == "running"
+
 def main():
     global RUN_LOCK_ACQUIRED
     ap = argparse.ArgumentParser()
@@ -78,6 +86,8 @@ def main():
         history_tmp.write_text(json.dumps(entries, sort_keys=True), encoding="utf-8")
         os.chmod(history_tmp, 0o644)
         os.replace(history_tmp, history)
+    if args.apply and previous_run_interrupted(state_dir):
+        status("interrupted")
     if args.skip_unchanged and args.apply and stamp.is_file() and stamp.read_text().strip() == source_before["sha256"]:
         status("skipped_unchanged")
         print(json.dumps({"skipped": True, "reason": "unchanged_source", "source_sha256": source_before["sha256"]}))

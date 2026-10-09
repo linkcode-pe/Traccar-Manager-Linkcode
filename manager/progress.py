@@ -145,7 +145,7 @@ def snapshot(principal):
         status_path = DB_PATH.parent / "prog006-run-status.json"
         try:
             raw = json.loads(status_path.read_text(encoding="utf-8"))
-            if isinstance(raw, dict) and raw.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed", "running"):
+            if isinstance(raw, dict) and raw.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed", "running", "interrupted"):
                 runner_status = {k:raw.get(k) for k in ("last_run", "result", "source_sha256")}
         except (OSError, ValueError):
             pass
@@ -154,7 +154,7 @@ def snapshot(principal):
             history = json.loads((DB_PATH.parent / "prog006-run-history.json").read_text(encoding="utf-8"))
             if isinstance(history, list):
                 for item in history[:10]:
-                    if isinstance(item, dict) and item.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed", "running"):
+                    if isinstance(item, dict) and item.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed", "runner_failed", "running", "interrupted"):
                         runner_history.append({k:item.get(k) for k in ("last_run", "result")})
         except (OSError, ValueError):
             pass

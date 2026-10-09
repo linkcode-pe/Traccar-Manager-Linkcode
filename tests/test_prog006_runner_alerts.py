@@ -101,6 +101,25 @@ class RunnerAlertsTests(unittest.TestCase):
         self.assertIsNotNone(retry)
         retry.close()
 
+    def test_recovery_detects_abandoned_run_only(self):
+        script = Path(__file__).resolve().parents[1] / "scripts/run-tests-with-progress.py"
+        spec = importlib.util.spec_from_file_location("prog006_recovery_test", script)
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+        self.assertFalse(runner.previous_run_interrupted(self.path))
+        self.write_status("running", datetime.now(timezone.utc).isoformat())
+        self.assertTrue(runner.previous_run_interrupted(self.path))
+        self.write_status("passed", datetime.now(timezone.utc).isoformat())
+        self.assertFalse(runner.previous_run_interrupted(self.path))
+        (self.path / "prog006-run-status.json").write_text("broken json")
+        self.assertFalse(runner.previous_run_interrupted(self.path))
+
+    def test_interrupted_status_is_not_a_success(self):
+        self.write_status("interrupted", datetime.now(timezone.utc).isoformat())
+        result = progress.snapshot(self.principal)
+        self.assertEqual(result["runner_status"]["result"], "interrupted")
+        self.assertEqual(result["runner_alert"], "failed")
+
     def test_missing_status_warns(self):
         self.assertEqual(progress.snapshot(self.principal)["runner_alert"], "missing")
 
