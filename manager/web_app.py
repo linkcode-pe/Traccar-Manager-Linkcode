@@ -2020,6 +2020,19 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
         return principal
 
     def _handle_progress_get(self, page=False):
+        if page:
+            _, principal = self._account_principal()
+            if principal is None:
+                self._respond(HTTPStatus.SEE_OTHER, b"", "text/plain; charset=utf-8",
+                              (("Location", "/manager/"),))
+                return
+            if not progress_authorized(principal):
+                self._respond(HTTPStatus.FORBIDDEN,
+                              b"Acceso restringido al superadministrador.",
+                              "text/plain; charset=utf-8")
+                return
+            self._respond(HTTPStatus.OK, PROGRESS_PAGE.encode("utf-8"), "text/html; charset=utf-8")
+            return
         principal = self._progress_principal()
         if principal is None:
             return
