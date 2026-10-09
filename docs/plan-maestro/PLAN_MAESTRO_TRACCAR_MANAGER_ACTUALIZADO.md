@@ -1,6 +1,6 @@
 # PLAN MAESTRO — TRACCAR MANAGER LINKCODE
 
-**Versión:** 2.2 (documentación viva obligatoria)
+**Versión:** 2.3 (primer despliegue prioriza el Centro de Desarrollo y Progreso)
 **Fecha:** 2026-10-09  
 **Estado:** Documento de planificación. No representa funcionalidades implementadas ni autorización de despliegue.
 
@@ -55,6 +55,18 @@ Las nuevas funcionalidades requieren diagnóstico, diseño, desarrollo aislado, 
 **Gobernanza:** solo el superadministrador puede consultar y gestionar este centro; los cambios de estado deben tener auditoría y no pueden eludir la validación técnica. El checklist no autoriza por sí mismo cambios de producción ni operaciones peligrosas.
 
 **Criterios de aceptación:** (1) están representados todos los objetivos aprobados del Plan Maestro; (2) las tareas pueden desplegarse por fases y consultarse individualmente; (3) los estados persisten y están auditados; (4) ninguna tarea se completa sin evidencia; (5) el avance se recalcula de forma consistente; (6) los permisos impiden acceso de usuarios no autorizados; (7) las nuevas indicaciones aprobadas pueden añadirse sin perder historial.
+
+### Hito D1 — Primer despliegue: Centro de Desarrollo y Progreso
+
+**Decisión aprobada por el propietario (2026-10-09):** el primer despliegue funcional del nuevo desarrollo debe incluir el Centro de Desarrollo y Progreso, con el checklist del Plan Maestro visible dentro de Traccar Manager. Esta prioridad de entrega sustituye el orden secuencial inicial de las fases, **sin omitir las verificaciones de seguridad, respaldos y recuperación que condicionan el despliegue**.
+
+**Alcance mínimo de D1:** acceso exclusivo de superadministrador validado en el servidor; listado íntegro de fases, módulos, tareas y subtareas; estados persistentes y auditables; búsqueda y filtros; detalle de criterios, dependencias, evidencias, pruebas, commits y documentación DOC-001; cálculo de progreso real y verificable; interfaz compatible con móvil y escritorio. Ninguna casilla puede completarse por una simple acción visual sin evidencia y autorización apropiada.
+
+**Secuencia de entrega:** D1.1 especificar esquema de datos, roles y fuente documental; D1.2 implementar API y persistencia seguras; D1.3 integrar la interfaz al sitio existente; D1.4 pruebas de autorización, aislamiento, consistencia, regresión y respaldo/restauración; D1.5 documentación y paquete de despliegue reversible; D1.6 aprobación explícita del propietario antes de instalar; D1.7 verificación posterior a instalación.
+
+**Exclusiones del primer despliegue:** no implica habilitar administración de dispositivos, envío de WhatsApp ni cambios en Traccar oficial. SEC-009 sigue como trabajo en desarrollo independiente; sus riesgos relevantes deben revisarse como condición de seguridad para D1. GitHub conserva documentación y respaldos; no publicar código experimental en la rama principal como si fuera producción.
+
+**Estado del hito:** aprobado como prioridad; desarrollo y despliegue pendientes. No equivale a autorización para modificar producción.
 
 ### Operación y protección
 
