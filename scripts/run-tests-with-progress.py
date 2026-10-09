@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import importlib.util
+import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,6 +20,7 @@ def main():
     ap.add_argument("--task", required=True)
     ap.add_argument("--timeout", type=int, default=180)
     ap.add_argument("--apply", action="store_true", help="Record event only after tests pass (non-root service account)")
+    ap.add_argument("--skip-unchanged", action="store_true", help="Skip successful repeated runs of same source fingerprint")
     args = ap.parse_args()
     if not re.fullmatch(r"[A-Z]{2,8}-[0-9]{3}", args.task):
         ap.error("invalid task")
@@ -34,6 +36,18 @@ def main():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     source_before = module.manifest(repo)
+    state_dir = Path("/var/lib/traccar-manager-progress") if args.apply else Path("/tmp")
+    lock_file = state_dir / "prog006-test-run.lock"
+    lock = open(lock_file, "a+")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("Another PROG-006 test run is active", file=sys.stderr)
+        return 8
+    stamp = state_dir / "prog006-last-success.sha256"
+    if args.skip_unchanged and args.apply and stamp.is_file() and stamp.read_text().strip() == source_before["sha256"]:
+        print(json.dumps({"skipped": True, "reason": "unchanged_source", "source_sha256": source_before["sha256"]}))
+        return 0
     command = ["bash", str(repo / "scripts/run-isolated-tests.sh"), "-q"]
     try:
         completed = subprocess.run(command, cwd=repo, text=True, stdout=subprocess.PIPE,
@@ -73,6 +87,8 @@ def main():
         recorder = ["runuser", "-u", "traccar-manager-web", "--", "env",
                     f"PYTHONPATH={repo}", "PYTHONDONTWRITEBYTECODE=1", *recorder]
     result = subprocess.run(recorder, cwd=repo, check=False)
+    if result.returncode == 0 and args.apply:
+        stamp.write_text(source_before["sha256"] + "\n")
     return result.returncode
 
 if __name__ == "__main__":

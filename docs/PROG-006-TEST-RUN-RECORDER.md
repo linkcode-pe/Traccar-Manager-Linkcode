@@ -44,3 +44,7 @@ Validación de laboratorio: batería aislada terminó con código 0, evento en v
 ## Despliegue productivo del manifiesto (2026-10-09)
 
 Se instalaron `source-manifest.py`, `run-tests-with-progress.py` y `progress-record-test-run.py` con respaldo de ejecutores anteriores. Ejecución controlada de `--task PROG-006 --apply` terminó código 0 y registró evento `test-run-02d310a1f7fd62b3120dd085`, manifiesto SHA256 `ccdbbffaf4b959636c0df6755c9d0180c25d24a9d0d4e10ab4bdd2e63010bb54` de 141 archivos. Verificación SQLite productivo: PROG-006 `in_testing`, 4 evidencias conservadas, 0/77 verificadas. Salud HTTP 200. No se ha habilitado cron ni temporizador automático.
+
+## Bloqueo y omisión por código sin cambios (2026-10-09)
+
+El ejecutor mantiene un bloqueo `flock` no bloqueante en `/var/lib/traccar-manager-progress/prog006-test-run.lock` durante toda la prueba y el registro. La opción `--skip-unchanged` (con `--apply`) evita repetir una ejecución exitosa si el manifiesto coincide con `/var/lib/traccar-manager-progress/prog006-last-success.sha256`; solo escribe la huella después de que la aplicación del evento haya terminado con código 0. Ejecución productiva con código 0 y evento `test-run-c65b0261842be779e3367e17`; segunda invocación devolvió `skipped:true` por huella idéntica. No se ha configurado un timer automático todavía.
