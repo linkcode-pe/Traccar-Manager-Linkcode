@@ -71,6 +71,14 @@ function setData(data){
   history.append(node("li",when+" · "+(descriptions[entry.result]||"Estado desconocido")));
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
+ const ledger=$("ledger-history");ledger.replaceChildren();
+ $("ledger-count").textContent=String(data.evidence_ledger_count??0);
+ for(const entry of (data.evidence_ledger||[])){
+  const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
+  const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
+  ledger.append(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
+ }
+ if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
  $("percent").textContent=(data.percentage??0)+"%";
  $("developing").textContent=data.tasks.filter(t=>t.state==="in_development").length;
  $("testing").textContent=data.tasks.filter(t=>t.state==="in_testing").length;

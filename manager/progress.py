@@ -158,6 +158,34 @@ def snapshot(principal):
                         runner_history.append({k:item.get(k) for k in ("last_run", "result")})
         except (OSError, ValueError):
             pass
+        evidence_ledger = []
+        ledger_count = 0
+        try:
+            ledger_count = db.execute("SELECT COUNT(*) FROM progress_evidence_ledger WHERE task_id='PROG-006'").fetchone()[0]
+            ledger_rows = db.execute("SELECT event_id,recorded_at,source_sha256,report_path,report_sha256,result FROM progress_evidence_ledger WHERE task_id='PROG-006' ORDER BY recorded_at DESC,event_id DESC LIMIT 10").fetchall()
+            report_root = (Path(__file__).resolve().parent.parent / "docs" / "test-runs").resolve()
+            for entry in ledger_rows:
+                item = dict(entry)
+                relative = item["report_path"]
+                valid_path = isinstance(relative, str) and re.fullmatch(r"docs/test-runs/[A-Za-z0-9._-]{1,180}\.md", relative)
+                integrity = "missing"
+                if valid_path:
+                    candidate = report_root / relative.rsplit("/", 1)[-1]
+                    if candidate.is_file() and not candidate.is_symlink():
+                        try:
+                            if candidate.stat().st_size <= 200000:
+                                integrity = "ok" if hashlib.sha256(candidate.read_bytes()).hexdigest() == item["report_sha256"] else "mismatch"
+                            else:
+                                integrity = "invalid"
+                        except OSError:
+                            integrity = "unavailable"
+                else:
+                    integrity = "invalid"
+                item["integrity"] = integrity
+                evidence_ledger.append(item)
+        except sqlite3.OperationalError as exc:
+            if "no such table" not in str(exc):
+                raise
         runner_alert = None
         if runner_status:
             if runner_status["result"] == "running":
@@ -178,7 +206,7 @@ def snapshot(principal):
         else:
             runner_alert = "missing"
         verified=sum(t["state"]=="verified" for t in tasks)
-        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"runner_alert":runner_alert,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
+        return {"tasks":tasks,"runner_status":runner_status,"runner_history":runner_history,"evidence_ledger":evidence_ledger,"evidence_ledger_count":ledger_count,"runner_alert":runner_alert,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 
