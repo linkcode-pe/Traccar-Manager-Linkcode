@@ -29,6 +29,12 @@ def main():
         ap.error("production apply requires root-controlled execution")
     repo = Path(__file__).resolve().parent.parent
     revision = subprocess.check_output(["git", "-c", f"safe.directory={repo}", "-C", str(repo), "rev-parse", "--short=12", "HEAD"], text=True).strip()
+    if args.apply:
+        # An uncommitted production checkout cannot be identified by its Git SHA alone.
+        dirty = subprocess.check_output(["git", "-c", f"safe.directory={repo}", "-C", str(repo), "status", "--porcelain", "--untracked-files=no"], text=True)
+        if dirty.strip():
+            print("Production source is modified: automatic write refused", file=sys.stderr)
+            return 6
     command = ["bash", str(repo / "scripts/run-isolated-tests.sh"), "-q"]
     try:
         completed = subprocess.run(command, cwd=repo, text=True, stdout=subprocess.PIPE,

@@ -28,3 +28,9 @@ Validación E2E aislada (2026-10-09): repositorio copiado bajo cuenta `nobody`, 
 Se instaló el ejecutor en `/opt/traccar-manager/scripts/` y se invocó manualmente como root `python3 scripts/run-tests-with-progress.py --task PROG-006 --apply`. La batería aislada finalizó con código 0, el registrador escribió como `traccar-manager-web`, evento `test-run-ac86f28e2f62e950da2fdab9`, informe `docs/test-runs/PROG-006-a83ef92751ad-8f0cd00aa481.md`. Verificación posterior: PROG-006 `in_testing`, documentación `in_review`, último evento visible en snapshot, 0/77 verificadas y HTTP 200. Se respaldó SQLite antes de ejecutar. El HEAD del checkout productivo (`a83ef92751ad`) no incluye todavía los cambios sin confirmar de su árbol de trabajo; no interpretar el SHA como identificación íntegra del código probado. No se configuró ejecución periódica.
 
 Para evitar escrituras arbitrarias, `--apply` requiere root y restringe actualmente la tarea a PROG-006; el registro se delega a la cuenta de servicio sin privilegios de root. La aceptación funcional sigue pendiente.
+
+## Protección de evidencias y control de versión
+
+Antes de aplicar, el registrador combina evidencias nuevas con las anteriores sin duplicados y rechaza la operación si superan 20 referencias. No elimina evidencias previas para hacer sitio. El ejecutor con `--apply` rechaza un checkout con cambios en archivos rastreados: el SHA del commit no identifica entonces íntegramente el código ejecutado. La protección no sustituye un manifiesto de artefactos para archivos no rastreados. No se habilita un temporizador productivo mientras el checkout permanezca modificado.
+
+Pruebas de laboratorio: segundo evento con evidencia adicional aplicado a SQLite aislado, total 3 evidencias conservadas; guardia de checkout modificado devuelve código 6 sin ejecutar la batería ni escribir en progreso.

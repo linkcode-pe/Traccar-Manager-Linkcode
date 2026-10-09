@@ -55,13 +55,19 @@ def main():
     from manager.auth.session_store import SessionPrincipal
     from manager.progress import ingest_event, connect
     with connect() as db:
-        row = db.execute("SELECT state FROM tasks WHERE task_id=?", (args.task,)).fetchone()
+        row = db.execute("SELECT state,evidence FROM tasks WHERE task_id=?", (args.task,)).fetchone()
         if row is None:
             print("Unknown task", file=sys.stderr)
             return 4
         if row["state"] == "verified":
             print("Verified task cannot be downgraded by test runner", file=sys.stderr)
             return 5
+    previous_evidence = json.loads(row["evidence"])
+    combined = list(dict.fromkeys(previous_evidence + event["evidence"]))
+    if len(combined) > 20:
+        print("Evidence limit reached; refusing to discard prior evidence", file=sys.stderr)
+        return 6
+    event["evidence"] = combined
     principal = SessionPrincipal("system-ci-tests", "test-runner", ("development.progress.manage",), "2099-01-01T00:00:00Z")
     print(json.dumps(ingest_event(principal, event), ensure_ascii=False))
     return 0
