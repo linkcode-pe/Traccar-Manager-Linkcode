@@ -1,6 +1,6 @@
 # PLAN MAESTRO — TRACCAR MANAGER LINKCODE
 
-**Versión:** 2.0 (actualización de requisitos)  
+**Versión:** 2.1 (checklist integral del Centro de Desarrollo y Progreso)
 **Fecha:** 2026-10-09  
 **Estado:** Documento de planificación. No representa funcionalidades implementadas ni autorización de despliegue.
 
@@ -42,7 +42,19 @@ Las nuevas funcionalidades requieren diagnóstico, diseño, desarrollo aislado, 
 
 ### PROG — Centro de Desarrollo y Progreso
 
-Panel accesible exclusivamente para superadministradores, con módulos, tareas, prioridades, estados, responsables, evidencias de pruebas, commits, decisiones, aprobaciones, incidentes y despliegues. Los porcentajes de avance solo se muestran cuando están respaldados por criterios medibles; no inventar progreso.
+**Requisito obligatorio confirmado por el propietario:** la web de Traccar Manager tendrá un **checklist interactivo y completo de todo el proceso de construcción y evolución del proyecto**, visible exclusivamente para el superadministrador en el **Centro de Desarrollo y Progreso**. Debe mostrar cómo queremos que funcione Traccar Manager, qué está implementado, qué falta y qué está validado; no será solo una lista estática de ideas.
+
+**Estructura del checklist:** fases > módulos > funcionalidades > tareas y subtareas verificables, incluyendo AUD, SEC, BCP, PROG, ADM, OPS, TEO y COM (bot de WhatsApp). Cada elemento debe tener identificador estable, descripción, criterios de aceptación, prioridad, responsable cuando corresponda, dependencias, fecha de actualización y referencias a evidencias.
+
+**Estados:** pendiente, en desarrollo, en pruebas, bloqueado y completado/verificado. Solo se marcará como completado cuando se cumplan criterios de aceptación y existan pruebas o evidencias verificables. El estado de una tarea no se deduce exclusivamente de la existencia de código o de una afirmación del asistente.
+
+**Interfaz:** vista general con progreso global y por fase/módulo; secciones expandibles; casillas de verificación; filtros por estado, prioridad y módulo; búsqueda; detalle de cada tarea con historial, decisiones, pruebas, commits y despliegues; alertas de bloqueos y pendientes. La información debe conservarse entre sesiones y permitir seguimiento de nuevas funcionalidades que se añadan al Plan Maestro.
+
+**Cálculo del avance:** porcentaje basado en tareas verificadas frente a tareas elegibles definidas, con denominador visible, reglas documentadas y tratamiento explícito de tareas bloqueadas/no aplicables. Si no existe evidencia suficiente, mostrar «sin verificar» en vez de inventar un porcentaje. No mostrar barras ilustrativas como datos reales.
+
+**Gobernanza:** solo el superadministrador puede consultar y gestionar este centro; los cambios de estado deben tener auditoría y no pueden eludir la validación técnica. El checklist no autoriza por sí mismo cambios de producción ni operaciones peligrosas.
+
+**Criterios de aceptación:** (1) están representados todos los objetivos aprobados del Plan Maestro; (2) las tareas pueden desplegarse por fases y consultarse individualmente; (3) los estados persisten y están auditados; (4) ninguna tarea se completa sin evidencia; (5) el avance se recalcula de forma consistente; (6) los permisos impiden acceso de usuarios no autorizados; (7) las nuevas indicaciones aprobadas pueden añadirse sin perder historial.
 
 ### Operación y protección
 
