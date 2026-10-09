@@ -22,7 +22,7 @@ def main():
     args = ap.parse_args()
     if not re.fullmatch(r"[A-Z]{2,8}-[0-9]{3}", args.task):
         ap.error("invalid task id")
-    if not re.fullmatch(r"[a-fA-F0-9]{7,64}", args.revision):
+    if not re.fullmatch(r"[a-fA-F0-9]{64}", args.revision):
         ap.error("invalid revision")
     if args.exit_code != 0:
         print("Tests did not pass: progress not updated", file=sys.stderr)
@@ -52,24 +52,17 @@ def main():
     if os.geteuid() == 0:
         print("Refusing to write progress database as root", file=sys.stderr)
         return 3
-    from manager.auth.session_store import SessionPrincipal
-    from manager.progress import ingest_event, connect
-    with connect() as db:
-        row = db.execute("SELECT state,evidence FROM tasks WHERE task_id=?", (args.task,)).fetchone()
-        if row is None:
-            print("Unknown task", file=sys.stderr)
-            return 4
-        if row["state"] == "verified":
-            print("Verified task cannot be downgraded by test runner", file=sys.stderr)
-            return 5
-    previous_evidence = json.loads(row["evidence"])
-    combined = list(dict.fromkeys(previous_evidence + event["evidence"]))
-    if len(combined) > 20:
-        print("Evidence limit reached; refusing to discard prior evidence", file=sys.stderr)
+    from manager.progress import connect
+    from manager.progress_evidence_ledger import record_success
+    try:
+        with connect() as db:
+            applied = record_success(db, event_id=event["event_id"], task_id=args.task,
+                                     source_sha256=args.revision.lower(), report_path=relative,
+                                     report_sha256=digest)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
         return 6
-    event["evidence"] = combined
-    principal = SessionPrincipal("system-ci-tests", "test-runner", ("development.progress.manage",), "2099-01-01T00:00:00Z")
-    print(json.dumps(ingest_event(principal, event), ensure_ascii=False))
+    print(json.dumps({"applied": applied, "duplicate": not applied, "event_id": event["event_id"]}, ensure_ascii=False))
     return 0
 
 if __name__ == "__main__":

@@ -45,3 +45,45 @@ class EvidenceLedgerTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class AtomicEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        from manager import progress
+        self.db = sqlite3.connect(':memory:')
+        self.db.execute('CREATE TABLE tasks(task_id TEXT PRIMARY KEY,state TEXT,doc_state TEXT,evidence TEXT,updated_at TEXT)')
+        self.db.execute("INSERT INTO tasks VALUES ('PROG-006','pending','pending','[\"historic\"]','old')")
+        self.db.execute('CREATE TABLE progress_events(event_id TEXT PRIMARY KEY,task_id TEXT,source TEXT,actor TEXT,state TEXT,recorded_at TEXT)')
+        self.db.execute('CREATE TABLE history(id INTEGER PRIMARY KEY,task_id TEXT,actor TEXT,old_state TEXT,new_state TEXT,changed_at TEXT)')
+        self.db.commit()
+        self.args = dict(event_id='test-run-' + 'a' * 24, task_id='PROG-006', source_sha256='b' * 64,
+                         report_path='docs/test-runs/PROG-006-test.md', report_sha256='c' * 64)
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_atomic_idempotent_preserves_checklist_evidence(self):
+        from manager.progress_evidence_ledger import record_success
+        self.assertTrue(record_success(self.db, **self.args))
+        self.assertFalse(record_success(self.db, **self.args))
+        self.assertEqual(self.db.execute('SELECT evidence FROM tasks').fetchone()[0], '["historic"]')
+        self.assertEqual(self.db.execute('SELECT count(*) FROM progress_events').fetchone()[0], 1)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM progress_evidence_ledger').fetchone()[0], 1)
+
+    def test_conflict_and_rollback(self):
+        from manager.progress_evidence_ledger import record_success
+        record_success(self.db, **self.args)
+        with self.assertRaisesRegex(ValueError, 'conflict'):
+            record_success(self.db, **dict(self.args, report_sha256='d' * 64))
+        self.db.execute("CREATE TRIGGER reject_history BEFORE INSERT ON history BEGIN SELECT RAISE(ABORT, 'blocked'); END")
+        with self.assertRaises(sqlite3.DatabaseError):
+            record_success(self.db, **dict(self.args, event_id='test-run-' + 'e' * 24))
+        self.assertEqual(self.db.execute('SELECT count(*) FROM progress_events').fetchone()[0], 1)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM progress_evidence_ledger').fetchone()[0], 1)
+
+    def test_verified_task_rejected(self):
+        from manager.progress_evidence_ledger import record_success
+        self.db.execute("UPDATE tasks SET state='verified'")
+        self.db.commit()
+        with self.assertRaisesRegex(ValueError, 'verified'):
+            record_success(self.db, **self.args)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM progress_events').fetchone()[0], 0)
