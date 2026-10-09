@@ -97,7 +97,7 @@ Interfaz administrativa moderna, segura y comprensible. Separación del Traccar 
 |---|---|---|---|
 | 0 | AUD-001 a AUD-004 | Registro de hallazgos, línea base, responsables, aceptación y rollback | Evidencias verificables y aprobación |
 | 1 | SEC-001 a SEC-009, BCP-001 a BCP-003 | Autenticación, permisos, sesiones, endurecimiento, respaldos y recuperación | Tests de regresión, restauración ensayada y revisión |
-| 2 | PROG-001 a PROG-005, DOC-001 | Centro de Desarrollo y Progreso y documentación viva | Control de acceso, trazabilidad y documentación verificada |
+| 2 | PROG-001 a PROG-006, DOC-001 | Centro de Desarrollo y Progreso y documentación viva | Control de acceso, trazabilidad y documentación verificada |
 | 3 | ADM-001/002, OPS-001/002/003 | Administración, diagnóstico y operaciones | Pruebas funcionales y controles de seguridad |
 | 4 | TEO-001, COM-001 a COM-003 | Evolución técnica e integraciones, especialmente WhatsApp | Validación de privacidad, proveedor y pruebas extremo a extremo |
 
@@ -132,3 +132,13 @@ Las funciones y el alcance exactos de otros módulos administrativos, comerciale
 ## 8. Estado de esta publicación
 
 Publicación de **documentación únicamente**. No modifica la aplicación productiva ni implementa el bot. Al agregar este documento a GitHub, el repositorio tendrá un archivo documental adicional respecto al árbol productivo hasta el próximo respaldo sincronizado; el código de aplicación permanece idéntico a la línea base publicada.
+
+
+### PROG-006 — Sincronización automática de avances (en desarrollo)
+
+- Registrar eventos de desarrollo con identificador estable, tarea del Plan Maestro, estado, origen y evidencias.
+- Aplicar idempotencia y controles de autorización y auditoría; rechazar estados verificados sin documentación/evidencia.
+- Refrescar el Centro de Desarrollo automáticamente cada 15 segundos mientras esté visible.
+- Conectar GitHub/CI mediante un emisor autenticado de eventos, sin permitir que un commit por sí solo marque una tarea como verificada o desplegada.
+- Evidencia inicial: pruebas HTTP de permisos, origen, duplicados, persistencia y requisitos de verificación.
+- **Estado:** en desarrollo; integración con GitHub/CI y validación visual aún pendientes.

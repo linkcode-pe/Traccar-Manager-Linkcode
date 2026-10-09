@@ -70,3 +70,5 @@ $("edit-form").onsubmit=async e=>{
  }catch(err){$("edit-error").textContent=err.message}
 };
 load();
+let polling=false;
+setInterval(async()=>{if(document.visibilityState!=="visible"||polling||$("editor").open)return;polling=true;try{const r=await fetch("/manager/api/progress",{credentials:"same-origin",cache:"no-store"});if(r.ok)setData(await r.json());else if(r.status===401)$("message").textContent="Sesión caducada. Vuelve al panel e inicia sesión."}catch(_e){}finally{polling=false}},15000);

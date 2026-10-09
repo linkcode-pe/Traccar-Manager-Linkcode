@@ -14,7 +14,7 @@ DOC_STATES = ("pending", "in_review", "verified", "not_applicable")
 GROUPS = {
     "0 Auditoría": ["AUD-001","AUD-002","AUD-003","AUD-004"],
     "1 Seguridad y continuidad": [*(f"SEC-{i:03}" for i in range(1,10)),*(f"BCP-{i:03}" for i in range(1,4))],
-    "2 Centro de progreso": [*(f"PROG-{i:03}" for i in range(1,6)),"DOC-001"],
+    "2 Centro de progreso": [*(f"PROG-{i:03}" for i in range(1,7)),"DOC-001"],
     "3 Administración y operaciones": ["ADM-001","ADM-002","OPS-001","OPS-002","OPS-003"],
     "4 Integraciones": ["TEO-001","COM-001","COM-002","COM-003"],
 }
@@ -25,6 +25,7 @@ TITLES = {
  "PROG-003":"Interfaz web de desarrollo y progreso",
  "PROG-004":"Evidencias, auditoría y progreso verificable",
  "PROG-005":"Pruebas, respaldo y despliegue",
+ "PROG-006":"Sincronización automática de avances",
  "COM-001":"Eventos Traccar y destinatarios WhatsApp",
  "COM-002":"Consola administrativa del bot",
  "COM-003":"Mensajería, conversaciones y observabilidad",
@@ -57,6 +58,9 @@ def init():
                 id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL,
                 actor TEXT NOT NULL, old_state TEXT, new_state TEXT NOT NULL,
                 changed_at TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS progress_events (
+                event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, source TEXT NOT NULL,
+                actor TEXT NOT NULL, state TEXT NOT NULL, recorded_at TEXT NOT NULL)""")
             now=datetime.now(timezone.utc).isoformat()
             for phase, ids in GROUPS.items():
                 for task_id in ids:
@@ -84,8 +88,39 @@ def snapshot(principal):
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 
-def update(principal, payload):
+def ingest_event(principal, event):
+    """Apply a traceable, idempotent development event, authorized by session."""
     if not authorized(principal): raise PermissionError("forbidden")
+    if not isinstance(event,dict) or set(event)!={"event_id","task_id","source","state","doc_state","evidence"}:
+        raise ProgressError("invalid event")
+    event_id=event["event_id"];source=event["source"]
+    if not isinstance(event_id,str) or not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}",event_id):
+        raise ProgressError("invalid event id")
+    if not isinstance(source,str) or not re.fullmatch(r"[A-Za-z0-9._/-]{2,64}",source):
+        raise ProgressError("invalid event source")
+    payload={k:event[k] for k in ("task_id","state","doc_state","evidence")}
+    validate_payload(payload)
+    db=connect()
+    try:
+        with db:
+            previous=db.execute("SELECT task_id,source,state FROM progress_events WHERE event_id=?",(event_id,)).fetchone()
+            if previous:
+                if previous["task_id"]!=payload["task_id"] or previous["source"]!=source or previous["state"]!=payload["state"]:
+                    raise ProgressError("event id conflict")
+                return {"applied":False,"duplicate":True,"event_id":event_id}
+            task=db.execute("SELECT state FROM tasks WHERE task_id=?",(payload["task_id"],)).fetchone()
+            if task is None:raise ProgressError("unknown task")
+            now=datetime.now(timezone.utc).isoformat()
+            db.execute("INSERT INTO progress_events VALUES(?,?,?,?,?,?)",
+                       (event_id,payload["task_id"],source,principal.subject_id,payload["state"],now))
+            db.execute("UPDATE tasks SET state=?,doc_state=?,evidence=?,updated_at=? WHERE task_id=?",
+                       (payload["state"],payload["doc_state"],json.dumps(payload["evidence"]),now,payload["task_id"]))
+            db.execute("INSERT INTO history(task_id,actor,old_state,new_state,changed_at) VALUES(?,?,?,?,?)",
+                       (payload["task_id"],principal.subject_id,task["state"],payload["state"],now))
+    finally:db.close()
+    return {"applied":True,"duplicate":False,"event_id":event_id}
+
+def validate_payload(payload):
     if not isinstance(payload,dict) or set(payload)!={"task_id","state","doc_state","evidence"}:
         raise ProgressError("invalid payload")
     task_id=payload["task_id"];state=payload["state"];doc=payload["doc_state"];evidence=payload["evidence"]
@@ -96,6 +131,11 @@ def update(principal, payload):
         raise ProgressError("invalid evidence")
     if state=="verified" and (not evidence or doc not in ("verified","not_applicable")):
         raise ProgressError("verification requires documentation and evidence")
+
+def update(principal, payload):
+    if not authorized(principal): raise PermissionError("forbidden")
+    validate_payload(payload)
+    task_id=payload["task_id"];state=payload["state"];doc=payload["doc_state"];evidence=payload["evidence"]
     db=connect()
     try:
         with db:

@@ -40,3 +40,12 @@ Respaldo anterior: `/root/traccar-manager-deploy-backups/pre-prog001-20261009T05
 
 ## Próxima iteración
 Completar pruebas de POST, navegación real, criterios de aceptación y dependencias por tarea, pruebas de respaldo/restauración y trazabilidad ampliada.
+
+
+## PROG-006 — Actualización incremental (2026-10-09)
+- Nueva API autenticada `POST /manager/api/progress/event` con `event_id`, `task_id`, `source`, `state`, `doc_state` y `evidence`.
+- Tabla `progress_events` para idempotencia y trazabilidad, además del historial existente.
+- El navegador refresca automáticamente la lista cada 15 segundos cuando la página está visible.
+- Se registró el evento real `PROG-006` en desarrollo; **no se marcó verificado**.
+- Pruebas HTTP aisladas: permiso, origen, idempotencia, persistencia y evidencia de verificación, aprobadas.
+- Pendiente: integración con GitHub Actions y prueba visual real.

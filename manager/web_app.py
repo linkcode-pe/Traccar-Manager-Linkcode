@@ -39,7 +39,7 @@ from manager.operational_health import operational_health
 from manager.operational_health_history import read_operational_health_history, read_operational_availability
 from manager.administrative_attention_history import read_administrative_attention_history, read_administrative_attention_metrics
 from manager.administrative_index_history import read_administrative_index_history
-from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, plan_source as progress_plan_source, ProgressError
+from manager.progress import init as progress_init, snapshot as progress_snapshot, update as progress_update, authorized as progress_authorized, plan_source as progress_plan_source, ingest_event as progress_ingest_event, ProgressError
 from manager.progress_page import PAGE as PROGRESS_PAGE
 from pathlib import Path as _ProgressPath
 from manager.account_profile import read_profile, save_profile, save_avatar, read_avatar, save_password, alert_unread, mark_alert_seen
@@ -2063,6 +2063,20 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
             return
         self._json(HTTPStatus.OK, result)
 
+    def _handle_progress_event(self):
+        principal=self._progress_principal()
+        if principal is None:return
+        if self.headers.get("Origin")!="https://homecargps.com" or self.headers.get("X-Requested-With")!="TraccarManager":
+            self._json(HTTPStatus.FORBIDDEN,{"error":"origin_denied"});return
+        payload=self._read_json_object(limit=16000)
+        try:
+            outcome=progress_ingest_event(principal,payload)
+        except (ProgressError,ValueError,TypeError):
+            self._json(HTTPStatus.BAD_REQUEST,{"error":"invalid_event"});return
+        except Exception:
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE,{"error":"progress_unavailable"});return
+        self._json(HTTPStatus.OK,outcome)
+
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
         path = parsed.path
@@ -2146,7 +2160,9 @@ class ManagerRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlsplit(self.path).path
-        if path == "/api/progress":
+        if path == "/api/progress/event":
+            self._handle_progress_event()
+        elif path == "/api/progress":
             self._handle_progress_post()
         elif path == "/api/auth/login":
             self._handle_login()
