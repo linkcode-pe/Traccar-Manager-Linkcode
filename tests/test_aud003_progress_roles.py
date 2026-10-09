@@ -48,14 +48,40 @@ class ProgressRoleHTTPTests(unittest.TestCase):
 
     def test_anonymous_read_denied(self):
         self.assertEqual(self.request("GET", "/api/progress")[0], 401)
+        self.assertEqual(self.request("GET", "/api/progress/ledger")[0], 401)
         self.assertEqual(self.request("GET", "/progress")[0], 303)
 
     def test_viewer_cannot_read_or_write(self):
-        for path in ("/progress", "/api/progress", "/api/progress/plan"):
+        for path in ("/progress", "/api/progress", "/api/progress/plan", "/api/progress/ledger"):
             self.assertEqual(self.request("GET", path, self.viewer)[0], 403, path)
         event = {"event_id":"audit003-test-event-001","task_id":"AUD-003","source":"test-suite","state":"in_testing","doc_state":"in_review","evidence":["test"]}
         self.assertEqual(self.request("POST", "/api/progress/event", self.viewer, event)[0], 403)
         self.assertEqual(self.request("POST", "/api/progress", self.viewer, {"task_id":"AUD-003","state":"in_testing","doc_state":"in_review","evidence":["test"]})[0], 403)
+
+    def test_ledger_http_authorization_pagination_and_invalid_cursor(self):
+        from manager.progress_evidence_ledger import record_success
+        with progress.connect() as db:
+            for i in range(22):
+                record_success(db, event_id='test-run-' + format(i, '024x'), task_id='PROG-006',
+                               source_sha256='a' * 64, report_path='docs/test-runs/missing.md',
+                               report_sha256='b' * 64)
+        status, _, body = self.request('GET', '/api/progress/ledger', self.admin)
+        self.assertEqual(status, 200)
+        first = json.loads(body)
+        self.assertEqual(len(first['items']), 10)
+        self.assertIsNotNone(first['next_cursor'])
+        status, _, body = self.request('GET', '/api/progress/ledger?before=' + first['next_cursor'], self.admin)
+        self.assertEqual(status, 200)
+        second = json.loads(body)
+        status, _, body = self.request('GET', '/api/progress/ledger?before=' + second['next_cursor'], self.admin)
+        self.assertEqual(status, 200)
+        third = json.loads(body)
+        self.assertEqual([len(p['items']) for p in (first, second, third)], [10, 10, 2])
+        self.assertIsNone(third['next_cursor'])
+        self.assertEqual(len({e['event_id'] for p in (first, second, third) for e in p['items']}), 22)
+        self.assertEqual(self.request('GET', '/api/progress/ledger?before=invalid', self.admin)[0], 400)
+        self.assertEqual(self.request('GET', '/api/progress/ledger?before=invalid', self.viewer)[0], 403)
+        self.assertEqual(self.request('GET', '/api/progress/ledger?before=invalid')[0], 401)
 
     def test_admin_read_and_origin(self):
         self.assertEqual(self.request("GET", "/progress", self.admin)[0], 200)
