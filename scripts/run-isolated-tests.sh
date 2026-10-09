@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LAB="$(mktemp -d /tmp/traccar-manager-tests-XXXXXXXX)"
 trap 'rm -rf -- "$LAB"' EXIT
-for part in manager api worker tests migrations runner web deploy deployment docs; do
+for part in manager api worker tests migrations runner web deploy deployment docs scripts; do
   if [[ -d "$ROOT/$part" ]]; then
     tar -C "$ROOT" --exclude='__pycache__' --exclude='.pytest_cache' -cf - "$part" | tar -C "$LAB" -xf -
   fi

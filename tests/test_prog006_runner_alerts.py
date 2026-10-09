@@ -1,5 +1,6 @@
 """PROG-006 monitor regression using disposable SQLite and status files only."""
 import json
+import importlib.util
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -25,6 +26,32 @@ class RunnerAlertsTests(unittest.TestCase):
 
     def write_status(self, result, when):
         (self.path / "prog006-run-status.json").write_text(json.dumps({"result": result, "last_run": when, "source_sha256": "a" * 64}))
+
+    def test_unhandled_runner_failure_is_recorded_in_isolated_state(self):
+        script = Path(__file__).resolve().parents[1] / "scripts/run-tests-with-progress.py"
+        spec = importlib.util.spec_from_file_location("prog006_runner_under_test", script)
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+        real_path = Path
+        with patch.object(runner, "Path", side_effect=lambda value: self.path if value == "/var/lib/traccar-manager-progress" else real_path(value)), \
+             patch.object(runner.sys, "argv", [str(script), "--apply"]), \
+             patch.object(runner.os, "geteuid", return_value=0):
+            runner.record_unhandled_failure()
+        status = json.loads((self.path / "prog006-run-status.json").read_text())
+        history = json.loads((self.path / "prog006-run-history.json").read_text())
+        self.assertEqual(status["result"], "runner_failed")
+        self.assertEqual(history[0], status)
+        self.assertEqual(progress.snapshot(self.principal)["runner_alert"], "failed")
+        self.assertEqual(progress.snapshot(self.principal)["runner_history"][0]["result"], "runner_failed")
+
+    def test_unhandled_runner_failure_dry_run_does_not_write(self):
+        script = Path(__file__).resolve().parents[1] / "scripts/run-tests-with-progress.py"
+        spec = importlib.util.spec_from_file_location("prog006_runner_dry_run", script)
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+        with patch.object(runner.sys, "argv", [str(script)]):
+            runner.record_unhandled_failure()
+        self.assertFalse((self.path / "prog006-run-status.json").exists())
 
     def test_missing_status_warns(self):
         self.assertEqual(progress.snapshot(self.principal)["runner_alert"], "missing")

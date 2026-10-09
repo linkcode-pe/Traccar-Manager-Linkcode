@@ -78,3 +78,7 @@ Se comprobó que `tests/test_prog006_runner_alerts.py` estaba versionado pero au
 ## Fallos internos del ejecutor (2026-10-09)
 
 Se incorporó `runner_failed` a los estados de lectura del panel y al historial. Si el ejecutor termina con excepción no controlada en modo `--apply`, intenta persistir de forma atómica un estado de fallo y devuelve código 1, sin certificar pruebas. Este registro es de mejor esfuerzo: errores de permisos, falta de disco o finalización forzosa pueden impedirlo; la alerta por ausencia de ejecuciones sigue cubriendo retrasos. Despliegue con respaldo y ejecución productiva normal exit 0; no se indujeron fallos reales en producción.
+
+## Pruebas de fallo interno aisladas (2026-10-09)
+
+Se añadieron dos pruebas a `tests/test_prog006_runner_alerts.py`: simulan `record_unhandled_failure()` con directorio temporal y comprueban que la API presenta `runner_failed` y alerta `failed`, y que sin `--apply` no se escribe estado. El laboratorio aislado ahora copia también `scripts/` para importar el ejecutor bajo prueba. Tras corregir esa dependencia, suite aislada completa exit 0 (~25 s). Se desplegaron únicamente los dos archivos revisados con respaldo, se ejecutó el servicio real de pruebas aisladas con `ExecMainStatus=0` y estado `passed`; salud web HTTP 200. No se indujo fallo productivo.
