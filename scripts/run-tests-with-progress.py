@@ -45,7 +45,18 @@ def main():
         print("Another PROG-006 test run is active", file=sys.stderr)
         return 8
     stamp = state_dir / "prog006-last-success.sha256"
+    def status(result):
+        if not args.apply:
+            return
+        payload = {"last_run": datetime.now(timezone.utc).isoformat(), "result": result,
+                   "source_sha256": source_before["sha256"]}
+        target = state_dir / "prog006-run-status.json"
+        temporary = state_dir / f".prog006-run-status.{os.getpid()}.tmp"
+        temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, target)
     if args.skip_unchanged and args.apply and stamp.is_file() and stamp.read_text().strip() == source_before["sha256"]:
+        status("skipped_unchanged")
         print(json.dumps({"skipped": True, "reason": "unchanged_source", "source_sha256": source_before["sha256"]}))
         return 0
     command = ["bash", str(repo / "scripts/run-isolated-tests.sh"), "-q"]
@@ -59,6 +70,7 @@ def main():
         code = 124
     source_after = module.manifest(repo)
     if source_after["sha256"] != source_before["sha256"]:
+        status("source_changed")
         print("Source changed during tests; event refused", file=sys.stderr)
         return 7
     report_dir = repo / "docs" / "test-runs"
@@ -78,6 +90,7 @@ def main():
     print(json.dumps({"task": args.task, "revision": revision, "exit_code": code,
                       "report": str(report.relative_to(repo)), "output_sha256": output_digest, "source_sha256": source_before["sha256"]}, ensure_ascii=False))
     if code:
+        status("tests_failed")
         print("Tests failed or timed out; no progress event generated", file=sys.stderr)
         return code if 1 <= code <= 125 else 1
     recorder = [sys.executable, str(repo / "scripts/progress-record-test-run.py"),
@@ -89,6 +102,7 @@ def main():
     result = subprocess.run(recorder, cwd=repo, check=False)
     if result.returncode == 0 and args.apply:
         stamp.write_text(source_before["sha256"] + "\n")
+    status("passed" if result.returncode == 0 else "record_failed")
     return result.returncode
 
 if __name__ == "__main__":

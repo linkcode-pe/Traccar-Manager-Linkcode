@@ -141,8 +141,16 @@ def snapshot(principal):
                      for row in db.execute("SELECT e.task_id,e.source,e.state,e.recorded_at FROM progress_events e JOIN (SELECT task_id,MAX(rowid) AS last_id FROM progress_events GROUP BY task_id) latest ON e.rowid=latest.last_id")}
         for row in db.execute("SELECT * FROM tasks ORDER BY phase,task_id"):
             d=dict(row);d["evidence"]=json.loads(d.pop("evidence"));d["last_event"]=last_events.get(d["task_id"]);d.update(task_spec(d["task_id"],d["title"],d["phase"]));tasks.append(d)
+        runner_status = None
+        status_path = DB_PATH.parent / "prog006-run-status.json"
+        try:
+            raw = json.loads(status_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict) and raw.get("result") in ("passed", "skipped_unchanged", "tests_failed", "source_changed", "record_failed"):
+                runner_status = {k:raw.get(k) for k in ("last_run", "result", "source_sha256")}
+        except (OSError, ValueError):
+            pass
         verified=sum(t["state"]=="verified" for t in tasks)
-        return {"tasks":tasks,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
+        return {"tasks":tasks,"runner_status":runner_status,"plan": {k:v for k,v in plan_source().items() if k != "markdown"},"verified":verified,"total":len(tasks),
                 "percentage":round(verified*100/len(tasks),2) if tasks else None}
     finally: db.close()
 

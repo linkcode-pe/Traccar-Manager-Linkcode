@@ -58,6 +58,10 @@ function render(){
 }
 function setData(data){
  tasks=data.tasks;
+ const run=data.runner_status;
+ const descriptions={passed:"Pruebas aprobadas y evento registrado",skipped_unchanged:"Sin cambios; ejecución omitida",tests_failed:"Pruebas fallidas",source_changed:"Código modificado durante las pruebas",record_failed:"No se pudo registrar el evento"};
+ const date=run?.last_run?new Date(run.last_run):null;
+ $("runner-status").textContent=run?((descriptions[run.result]||"Estado desconocido")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString("es-PE"):"")):"Sin ejecución registrada en el monitor";
  $("percent").textContent=(data.percentage??0)+"%";
  $("developing").textContent=data.tasks.filter(t=>t.state==="in_development").length;
  $("testing").textContent=data.tasks.filter(t=>t.state==="in_testing").length;
