@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../../manager/web_app.py',import.meta.url),'utf8');
+const start=source.indexOf('  async function loadServerStatus(){');
+const end=source.indexOf('\n  async function loadBoundaryHealth()',start);
+assert(start>0&&end>start);
+const functionCode=source.slice(start,end);
+const catchStart=functionCode.lastIndexOf('    } catch(_e) { serverState.textContent=');
+assert(catchStart>0);
+const handler=functionCode.slice(catchStart);
+for(const expected of ['databaseState.textContent="Metadatos no disponibles','databaseTotal.textContent="—"','databaseIndexMeter.firstElementChild.style.width="0%"','positionsMeter.firstElementChild.style.width="0%"','byId("kpi-database").textContent="—"'])assert(handler.includes(expected),`Missing reset: ${expected}`);
+console.log('DATABASE FAILURE RESETS METADATA AND METERS OK');

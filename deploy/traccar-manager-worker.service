@@ -1,0 +1,32 @@
+[Unit]
+Description=Traccar Manager fixed Traccar status Worker
+After=local-fs.target
+
+[Service]
+Type=simple
+User=traccar-manager-worker
+Group=traccar-manager-worker
+SupplementaryGroups=traccar-manager-ipc
+WorkingDirectory=/opt/traccar-manager
+ExecStart=/usr/bin/python3 -B /opt/traccar-manager/worker/runtime_server.py
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+UMask=0027
+StateDirectory=traccar-manager-worker
+StateDirectoryMode=0750
+RuntimeDirectory=traccar-manager
+RuntimeDirectoryMode=0750
+RuntimeDirectoryGroup=traccar-manager-ipc
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=multi-user.target

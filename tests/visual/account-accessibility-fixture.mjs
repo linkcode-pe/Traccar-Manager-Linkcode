@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../../manager/web_app.py',import.meta.url),'utf8');
+const start=source.indexOf('<article id="account-card"');
+const end=source.indexOf('</article>',start);
+assert(start>0&&end>start);
+const html=source.slice(start,end);
+for(const id of ['profile-name','profile-email','password-current','password-new','password-confirm'])assert(html.includes(`for="${id}"`),`Missing explicit label for ${id}`);
+for(const id of ['profile-status','password-status'])assert(new RegExp(`id="${id}"[^>]*role="status"[^>]*aria-live="polite"`).test(html),`Missing status announcement for ${id}`);
+assert(html.includes('aria-label="Cambiar foto de perfil"'));
+console.log('ACCOUNT INPUT LABELS AND LIVE STATUS ANNOUNCEMENTS OK');

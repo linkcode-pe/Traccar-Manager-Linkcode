@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../../manager/web_app.py',import.meta.url),'utf8');
+const start=src.indexOf('  async function loadServerStatus(){');
+const end=src.indexOf('  async function loadBoundaryHealth()',start);
+assert(start>0&&end>start);
+const block=src.slice(start,end),catchStart=block.lastIndexOf('} catch(_e)');
+assert(catchStart>0);
+const handler=block.slice(catchStart);
+for(const fragment of ['servicesGrid.replaceChildren()','byId("overview-services-list").replaceChildren()','servicesState.textContent="⚠ Servicios sin lectura confirmada"','servicesObserved.textContent="Última comprobación: sin evidencia confirmada"'])assert(handler.includes(fragment),`Missing fetch failure reset: ${fragment}`);
+console.log('SERVER SERVICE ERROR CLEARS STALE STATUS AND OVERVIEW OK');

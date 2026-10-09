@@ -1,0 +1,2 @@
+# Connector version validated by the nonproduction MySQL E2E.
+mysql-connector-python==9.7.0

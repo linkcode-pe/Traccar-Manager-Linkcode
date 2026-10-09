@@ -1,0 +1,1 @@
+"""Traccar Manager infrastructure package."""

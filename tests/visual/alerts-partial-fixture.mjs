@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+
+// Exercise the actual embedded browser function without requesting production APIs.
+const source=readFileSync(new URL('../../manager/web_app.py',import.meta.url),'utf8');
+const begin=source.indexOf('  function renderAlerts(d,administrativeInterventions=[]){');
+const end=source.indexOf('\n  let deviceInventory=[];',begin);
+assert(begin>0&&end>begin,'renderAlerts function must be present');
+const functionCode=source.slice(begin,end);
+const elements=new Map();
+const element=(tag='div')=>({tag,textContent:'',className:'',hidden:false,children:[],replaceChildren(...xs){this.children=[...xs]},append(...xs){this.children.push(...xs)},appendChild(x){this.children.push(x)},addEventListener(){}});
+const byId=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id)};
+const context={byId,document:{createElement:element},window:{},alertsList:element(),alertsBadge:element(),formatBytes:n=>`${n} bytes`,formatAuditDuration:n=>`${n}s`,syncAlertIndicator:()=>{},Number,Array,Object,String};
+runInNewContext(functionCode+'\nthis.runAlerts=renderAlerts;',context,{timeout:1000});
+const d={disk_used_percent:20,memory_total_bytes:100,memory_used_bytes:20,storage_protection:{database:{status:'HEALTHY'},services:{}}};
+context.runAlerts(d);
+const rows=byId('alerts-center-list').children;
+assert.equal(rows.length,2);
+assert(rows.some(r=>r.children[0].textContent.includes('Journal sin protección verificada')));
+assert(rows.some(r=>r.children[0].textContent.includes('Binlogs sin protección verificada')));
+assert.equal(byId('alerts-center-badge').textContent,'2 críticos');
+assert.equal(byId('kpi-alerts').textContent,'2 activas');
+console.log('ALERTS PARTIAL PROTECTION EVIDENCE OK');
+context.runAlerts({...d,storage_protection:{...d.storage_protection,journal:{status:'PROTECTED',used_bytes:100,max_use_bytes:1000},binlogs:{status:'PROTECTED'}}});
+assert.equal(byId('alerts-center-badge').textContent,'Todo operativo');
+console.log('ALERTS HEALTHY PROTECTION EVIDENCE OK');
+context.runAlerts({...d,storage_protection:null});
+assert(byId('alerts-center-list').children.some(r=>r.children[0].textContent.includes('Auditoría no disponible')));
+console.log('ALERTS MISSING SNAPSHOT OK');
+context.runAlerts({...d,storage_protection:{...d.storage_protection,journal:{status:'PROTECTED',used_bytes:1,max_use_bytes:100},binlogs:{status:'PROTECTED'},services:{traccar:null}}});
+assert(byId('alerts-center-list').children.some(r=>r.children[0].textContent.includes('Servicio requiere atención')));
+console.log('ALERTS NULL SERVICE EVIDENCE OK');

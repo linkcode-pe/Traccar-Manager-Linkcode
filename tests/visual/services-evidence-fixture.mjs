@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../../manager/web_app.py',import.meta.url),'utf8');
+const start=src.indexOf('      if(p&&p.services&&typeof p.services==="object"){');
+const end=src.indexOf('      if(p&&p.journal&&p.binlogs){',start);
+assert(start>0&&end>start);
+const snippet=src.slice(start,end);
+assert.equal((snippet.match(/const s=p\.services\[key\];const ok=!!s&&/g)||[]).length,2);
+assert(snippet.includes('st.textContent=s?(s.active_state||"sin evidencia")'));
+assert(snippet.includes('servicesGrid.replaceChildren();byId("overview-services-list").replaceChildren();servicesState.textContent="⚠ Servicios sin evidencia verificable"'));
+assert(!snippet.includes('if(!s)return'));
+console.log('SERVER SERVICE MISSING EVIDENCE GUARDS PRESENT OK');
