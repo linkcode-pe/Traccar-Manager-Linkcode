@@ -135,7 +135,7 @@ async function recoverLedgerGap(){
  if(ledgerRecovering||ledgerBusy)return;
  ledgerRecovering=true;
  try{
-  let cursor=null, pending=[],found=false;
+  let cursor=null, pending=[],found=false,previous=null;
   const cursors=new Set();
   for(let n=0;n<10;n++){
    const url="/manager/api/progress/ledger"+(cursor?"?before="+encodeURIComponent(cursor):"");
@@ -152,6 +152,10 @@ async function recoverLedgerGap(){
       (page.next_cursor!==null&&page.next_cursor!==page.items[page.items.length-1]?.event_id))
      throw Error("Respuesta inválida durante la sincronización");
    for(const entry of page.items){
+    if(previous&&(entry.recorded_at>previous.recorded_at||
+       (entry.recorded_at===previous.recorded_at&&entry.event_id>=previous.event_id)))
+      throw Error("Orden inválido durante la sincronización");
+    previous=entry;
     if(ledgerSeen.has(entry.event_id)){found=true;break}
     if(pending.some(e=>e.event_id===entry.event_id))throw Error("Evidencias repetidas durante la sincronización");
     pending.push(entry);

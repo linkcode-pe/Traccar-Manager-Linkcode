@@ -201,3 +201,23 @@ test('concurrent polls do not duplicate recovery requests',async()=>{
  assert.match(ui.element('ledger-error').textContent,/Respuesta inválida/);
  assert.equal(ui.element('ledger-history').childElementCount,12);
 });
+
+test('recovery rejects reversed evidence order atomically',async()=>{
+ const ui=setup(undefined,async()=>({ok:true,json:async()=>({items:[report(33),report(34),report(30)],next_cursor:null})}));
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=[report(34),report(33),report(30),...ui.data.evidence_ledger.slice(1,8)];
+ ui.data.evidence_ledger_count=26;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.match(ui.element('ledger-error').textContent,/Orden inválido/);
+});
+test('recovery rejects duplicate IDs across page boundaries atomically',async()=>{
+ const ui=setup(undefined,async url=>({ok:true,json:async()=>url.includes('?before=')?
+  {items:[report(36),report(30)],next_cursor:null}:
+  {items:Array.from({length:10},(_,i)=>report(45-i)),next_cursor:report(36).event_id}}));
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));ui.data.evidence_ledger_count=37;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.match(ui.element('ledger-error').textContent,/Orden inválido|repetidas/);
+});
