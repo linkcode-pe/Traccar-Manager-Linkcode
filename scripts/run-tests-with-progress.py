@@ -16,13 +16,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", required=True)
     ap.add_argument("--timeout", type=int, default=180)
+    ap.add_argument("--apply", action="store_true", help="Record event only after tests pass (non-root service account)")
     args = ap.parse_args()
     if not re.fullmatch(r"[A-Z]{2,8}-[0-9]{3}", args.task):
         ap.error("invalid task")
     if not 30 <= args.timeout <= 600:
         ap.error("timeout out of bounds")
     repo = Path(__file__).resolve().parent.parent
-    revision = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "--short=12", "HEAD"], text=True).strip()
+    revision = subprocess.check_output(["git", "-c", f"safe.directory={repo}", "-C", str(repo), "rev-parse", "--short=12", "HEAD"], text=True).strip()
     command = ["bash", str(repo / "scripts/run-isolated-tests.sh"), "-q"]
     try:
         completed = subprocess.run(command, cwd=repo, text=True, stdout=subprocess.PIPE,
@@ -50,10 +51,11 @@ def main():
     if code:
         print("Tests failed or timed out; no progress event generated", file=sys.stderr)
         return code if 1 <= code <= 125 else 1
-    result = subprocess.run(
-        [sys.executable, str(repo / "scripts/progress-record-test-run.py"),
-         "--task", args.task, "--report", str(report), "--revision", revision, "--exit-code", "0"],
-        cwd=repo, check=False)
+    recorder = [sys.executable, str(repo / "scripts/progress-record-test-run.py"),
+                "--task", args.task, "--report", str(report), "--revision", revision, "--exit-code", "0"]
+    if args.apply:
+        recorder.append("--apply")
+    result = subprocess.run(recorder, cwd=repo, check=False)
     return result.returncode
 
 if __name__ == "__main__":

@@ -53,7 +53,15 @@ def main():
         print("Refusing to write progress database as root", file=sys.stderr)
         return 3
     from manager.auth.session_store import SessionPrincipal
-    from manager.progress import ingest_event
+    from manager.progress import ingest_event, connect
+    with connect() as db:
+        row = db.execute("SELECT state FROM tasks WHERE task_id=?", (args.task,)).fetchone()
+        if row is None:
+            print("Unknown task", file=sys.stderr)
+            return 4
+        if row["state"] == "verified":
+            print("Verified task cannot be downgraded by test runner", file=sys.stderr)
+            return 5
     principal = SessionPrincipal("system-ci-tests", "test-runner", ("development.progress.manage",), "2099-01-01T00:00:00Z")
     print(json.dumps(ingest_event(principal, event), ensure_ascii=False))
     return 0
