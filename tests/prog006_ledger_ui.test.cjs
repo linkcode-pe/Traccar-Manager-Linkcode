@@ -221,3 +221,20 @@ test('recovery rejects duplicate IDs across page boundaries atomically',async()=
  assert.equal(ui.element('ledger-history').childElementCount,12);
  assert.match(ui.element('ledger-error').textContent,/Orden inválido|repetidas/);
 });
+
+test('recovery refuses stale result when another poll advances the visible head',async()=>{
+ let resolveRecovery;
+ const ui=setup(undefined,async()=>new Promise(resolve=>{resolveRecovery=resolve}));
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(45-i));ui.data.evidence_ledger_count=37;
+ await ui.poll();
+ // An overlapping snapshot can add a newer head before the old recovery finishes.
+ ui.data.evidence_ledger=[report(32),...Array.from({length:9},(_,i)=>report(30-i))];
+ ui.data.evidence_ledger_count=23;
+ await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,13);
+ resolveRecovery({ok:true,json:async()=>({items:[report(31),report(30)],next_cursor:null})});
+ await new Promise(setImmediate);
+ assert.equal(ui.element('ledger-history').childElementCount,13);
+ assert.match(ui.element('ledger-error').textContent,/historial cambió/);
+});

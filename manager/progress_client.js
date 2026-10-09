@@ -1,5 +1,5 @@
 "use strict";
-let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map(),ledgerLastCount=null,ledgerRecovering=false;
+let tasks=[],selected=null,ledgerCursor=null,ledgerBusy=false,ledgerExpanded=false,ledgerSeen=new Set(),ledgerNodes=new Map(),ledgerLastCount=null,ledgerRecovering=false,ledgerLastHead=null;
 const $=id=>document.getElementById(id);
 const labels={pending:"Pendiente",in_development:"En desarrollo",in_testing:"En pruebas",blocked:"Bloqueado",verified:"Verificado"};
 const docLabels={pending:"Pendiente",in_review:"En revisión",verified:"Verificada",not_applicable:"No aplica"};
@@ -83,7 +83,7 @@ function setData(data){
  }
  if(!history.childElementCount)history.append(node("li","Aún no hay registros históricos"));
  const ledger=$("ledger-history");
- if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear();ledgerLastCount=null}
+ if(!ledgerExpanded){ledger.replaceChildren();ledgerSeen.clear();ledgerNodes.clear();ledgerLastCount=null;ledgerLastHead=null}
  $("ledger-count").textContent=String(data.evidence_ledger_count??0);
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
@@ -107,7 +107,7 @@ function setData(data){
     if(ledgerSeen.has(entry.event_id))continue;
     prefix.push(trackLedger(entry));
    }
-   if(prefix.length)ledger.prepend(...prefix);
+   if(prefix.length){ledger.prepend(...prefix);ledgerLastHead=fresh[0]}
    }
   }else if(latest.some(entry=>!ledgerSeen.has(entry.event_id))){
    recoverLedgerGap();
@@ -117,6 +117,7 @@ function setData(data){
  for(const entry of (ledgerExpanded?[]:latest)){
   ledger.append(trackLedger(entry));
  }
+ if(!ledgerExpanded&&latest.length)ledgerLastHead=latest[0];
  if(!ledger.childElementCount)ledger.append(node("li","Aún no hay evidencias registradas"));
  if(!ledgerExpanded){
   ledgerCursor=(data.evidence_ledger_count||0)>10&&data.evidence_ledger?.length===10?data.evidence_ledger[9].event_id:null;
@@ -167,7 +168,19 @@ async function recoverLedgerGap(){
    cursor=page.next_cursor;
   }
   if(!found)throw Error("La sincronización excedió el límite seguro de páginas");
-  if(pending.length)$("ledger-history").prepend(...pending.map(trackLedger));
+  // Polling can add newer entries while these requests are in flight.
+  // Reconcile against the current visible head before committing any rows.
+  if(pending.some(entry=>ledgerSeen.has(entry.event_id)))
+   throw Error("El historial cambió durante la sincronización");
+  if(pending.length&&ledgerLastHead){
+   const newest=pending[0];
+   const currentEntry=ledgerLastHead;
+   if(currentEntry&&(newest.recorded_at<currentEntry.recorded_at||
+      (newest.recorded_at===currentEntry.recorded_at&&newest.event_id<=currentEntry.event_id)))
+    throw Error("El historial cambió durante la sincronización");
+  }
+  if(pending.length){$("ledger-history").prepend(...pending.map(trackLedger));ledgerLastHead=pending[0]}
+
   $("ledger-error").textContent="";
  }catch(e){$("ledger-error").textContent="No se pudo sincronizar automáticamente: "+e.message+". Actualiza la página."}
  finally{ledgerRecovering=false}
