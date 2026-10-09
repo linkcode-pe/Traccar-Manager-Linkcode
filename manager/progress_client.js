@@ -77,7 +77,25 @@ function setData(data){
  const integrity=data.evidence_ledger_integrity||{};
  const issues=(integrity.missing||0)+(integrity.mismatch||0)+(integrity.invalid||0)+(integrity.unavailable||0);
  $("ledger-integrity").textContent=(integrity.ok||0)+" evidencias íntegras · "+issues+" con incidencias (faltantes, alteradas o inaccesibles)";
- for(const entry of (ledgerExpanded?[]:(data.evidence_ledger||[]))){
+ const latest=data.evidence_ledger||[];
+ if(ledgerExpanded&&latest.length){
+  const overlap=latest.findIndex(entry=>ledgerSeen.has(entry.event_id));
+  if(overlap>=0){
+   const fresh=latest.slice(0,overlap);
+   const prefix=[];
+   for(const entry of fresh){
+    if(ledgerSeen.has(entry.event_id))continue;
+    const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
+    const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
+    prefix.push(node("li",when+" · "+entry.event_id+" · "+entry.result+" · SHA256 "+entry.report_sha256.slice(0,16)+"… · "+integrity));
+    ledgerSeen.add(entry.event_id);
+   }
+   if(prefix.length)ledger.prepend(...prefix);
+  }else if(latest.some(entry=>!ledgerSeen.has(entry.event_id))){
+   $("ledger-error").textContent="Hay evidencias nuevas fuera del historial cargado. Actualiza la página para sincronizarlo.";
+  }
+ }
+ for(const entry of (ledgerExpanded?[]:latest)){
   const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
   const integrity={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"}[entry.integrity]||"No comprobado";
   ledgerSeen.add(entry.event_id);

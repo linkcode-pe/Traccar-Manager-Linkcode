@@ -6,6 +6,7 @@ const {test} = require('node:test');
 class Element {
  constructor(){this.children=[];this.hidden=false;this.disabled=false;this.textContent='';this.value='';this.open=false;this.dataset={};}
  append(...children){this.children.push(...children)}
+ prepend(...children){this.children.unshift(...children)}
  replaceChildren(...children){this.children=[...children]}
  get childElementCount(){return this.children.length}
  querySelectorAll(){return []}
@@ -31,7 +32,8 @@ test('paginates and preserves older entries during refresh',async()=>{
  assert.equal(ui.element('ledger-more').hidden,true);
  ui.data.evidence_ledger=[report(31),...ui.data.evidence_ledger.slice(0,9)];ui.data.evidence_ledger_count=23;
  await ui.poll();
- assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.equal(ui.element('ledger-history').childElementCount,13);
+ assert.match(ui.element('ledger-history').children[0].textContent,/test-run-00000000000000000000001f/);
  assert.equal(ui.element('ledger-more').hidden,true);
  assert.equal(ui.element('ledger-count').textContent,'23');
  assert.equal(ui.requests.filter(x=>x.includes('/ledger?')).length,1);
@@ -92,4 +94,16 @@ test('invalid or incomplete server pages never partially append records',async()
   assert.equal(ui.element('ledger-more').hidden,false);
   assert.equal(ui.element('ledger-more').disabled,false);
  }
+});
+
+test('new records remain unique across successive polls',async()=>{
+ const ui=setup();await new Promise(setImmediate);
+ await ui.element('ledger-more').onclick();
+ ui.data.evidence_ledger=[report(31),...ui.data.evidence_ledger.slice(0,9)];
+ await ui.poll();await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,13);
+ ui.data.evidence_ledger=[report(32),...ui.data.evidence_ledger.slice(0,9)];
+ await ui.poll();
+ assert.equal(ui.element('ledger-history').childElementCount,14);
+ assert.match(ui.element('ledger-history').children[0].textContent,/test-run-000000000000000000000020/);
 });
