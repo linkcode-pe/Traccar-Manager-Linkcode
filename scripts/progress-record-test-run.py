@@ -22,7 +22,7 @@ def main():
     args = ap.parse_args()
     if not re.fullmatch(r"[A-Z]{2,8}-[0-9]{3}", args.task):
         ap.error("invalid task id")
-    if not re.fullmatch(r"[a-fA-F0-9]{7,40}", args.revision):
+    if not re.fullmatch(r"[a-fA-F0-9]{7,64}", args.revision):
         ap.error("invalid revision")
     if args.exit_code != 0:
         print("Tests did not pass: progress not updated", file=sys.stderr)
@@ -44,7 +44,7 @@ def main():
         "source": "scripts/progress-record-test-run",
         "state": "in_testing",
         "doc_state": "in_review",
-        "evidence": [f"{relative} (SHA256 {digest[:16]})", f"Commit {args.revision}; pruebas terminadas con código 0"],
+        "evidence": [f"{relative} (SHA256 {digest[:16]})", f"Fuente SHA256 {args.revision}; pruebas terminadas con código 0"],
     }
     if not args.apply:
         print(json.dumps({"preview": True, "event": event}, ensure_ascii=False))

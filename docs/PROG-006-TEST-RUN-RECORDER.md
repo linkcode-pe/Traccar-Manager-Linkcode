@@ -34,3 +34,9 @@ Para evitar escrituras arbitrarias, `--apply` requiere root y restringe actualme
 Antes de aplicar, el registrador combina evidencias nuevas con las anteriores sin duplicados y rechaza la operación si superan 20 referencias. No elimina evidencias previas para hacer sitio. El ejecutor con `--apply` rechaza un checkout con cambios en archivos rastreados: el SHA del commit no identifica entonces íntegramente el código ejecutado. La protección no sustituye un manifiesto de artefactos para archivos no rastreados. No se habilita un temporizador productivo mientras el checkout permanezca modificado.
 
 Pruebas de laboratorio: segundo evento con evidencia adicional aplicado a SQLite aislado, total 3 evidencias conservadas; guardia de checkout modificado devuelve código 6 sin ejecutar la batería ni escribir en progreso.
+
+## Manifiesto verificable de fuente (2026-10-09)
+
+`python3 scripts/source-manifest.py --root /opt/traccar-manager --output /ruta/manifest.json` genera un inventario determinista con SHA256 por archivo y SHA256 global. Incluye archivos fuente no rastreados en Git dentro de los directorios de aplicación, excluye cachés, dependencias y artefactos generados. El ejecutor compara la huella antes/después de pruebas y usa la huella global para nombrar informe y evento; conserva el commit Git como metadato secundario. No incluye secretos, datos SQLite ni archivos fuera de los directorios declarados. Este control detecta cambios en los archivos cubiertos, pero no sustituye firma criptográfica ni protección frente a un atacante con acceso root.
+
+Validación de laboratorio: batería aislada terminó con código 0, evento en vista previa vinculado al manifiesto SHA256 `c71f6ae162bd295ad1226fac983e3204877717eec6f6c20d7044334cf64c0be3`. Manifiesto de fuente productiva medido por separado: 140 archivos; SHA256 `daadf275ed0118fed4e58f4acbdd9859d89ebd03741742afb91c7ee973e3649d` (fotografía puntual, no verificación continua).
