@@ -103,6 +103,15 @@ async function loadOlderLedger(){
   const r=await fetch("/manager/api/progress/ledger?before="+encodeURIComponent(ledgerCursor),{credentials:"same-origin",cache:"no-store"});
   if(!r.ok)throw new Error(r.status===401||r.status===403?"Acceso denegado o sesión caducada":"No se pudo consultar el historial");
   const page=await r.json();
+  if(!page||!Array.isArray(page.items)||page.items.length>25||
+     (page.next_cursor!==null&&(typeof page.next_cursor!=="string"||!/^test-run-[a-f0-9]{24}$/.test(page.next_cursor)))||
+     (page.next_cursor!==null&&page.items.length===0)||
+     !page.items.every(entry=>entry&&typeof entry.event_id==="string"&&/^test-run-[a-f0-9]{24}$/.test(entry.event_id)&&
+       typeof entry.recorded_at==="string"&&typeof entry.result==="string"&&
+       typeof entry.report_sha256==="string"&&/^[a-f0-9]{64}$/.test(entry.report_sha256)&&
+       ["ok","missing","mismatch","invalid","unavailable"].includes(entry.integrity))||
+     (page.items.length>0&&page.next_cursor!==null&&page.next_cursor===ledgerCursor))
+    throw new Error("Respuesta del historial inválida; inténtalo de nuevo");
   for(const entry of page.items){
    const at=new Date(entry.recorded_at),when=Number.isNaN(at.getTime())?"Fecha desconocida":at.toLocaleString("es-PE");
    const labels={ok:"Integridad verificada",missing:"Informe no encontrado",mismatch:"Integridad alterada",invalid:"Referencia inválida",unavailable:"Informe inaccesible"};

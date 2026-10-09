@@ -72,3 +72,21 @@ test('repeated clicks during pending request make one call',async()=>{
  assert.equal(ui.element('ledger-history').childElementCount,11);
  assert.equal(ui.element('ledger-more').disabled,false);
 });
+
+test('invalid or incomplete server pages never partially append records',async()=>{
+ const cases=[null,{}, {items:null,next_cursor:null},
+  {items:[report(20),{event_id:'bad'}],next_cursor:null},
+  {items:[report(20)],next_cursor:'invalid'},
+  {items:[],next_cursor:report(19).event_id},
+  {items:[report(20)],next_cursor:report(21).event_id},
+  {items:Array.from({length:26},(_,i)=>report(i)),next_cursor:null}];
+ for(const page of cases){
+  const ui=setup(async()=>({ok:true,json:async()=>page}));
+  await new Promise(setImmediate);
+  await ui.element('ledger-more').onclick();
+  assert.equal(ui.element('ledger-history').childElementCount,10,JSON.stringify(page));
+  assert.match(ui.element('ledger-error').textContent,/Respuesta del historial inválida/);
+  assert.equal(ui.element('ledger-more').hidden,false);
+  assert.equal(ui.element('ledger-more').disabled,false);
+ }
+});
