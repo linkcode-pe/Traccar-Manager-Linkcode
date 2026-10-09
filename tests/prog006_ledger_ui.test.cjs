@@ -18,8 +18,8 @@ function setup(ledgerFetch,recoveryFetch){
  const element=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id)};
  const initial=Array.from({length:10},(_,i)=>report(30-i));
  const data={tasks:[],runner_status:null,runner_history:[],runner_alert:null,evidence_ledger:initial,evidence_ledger_count:22,evidence_ledger_integrity:{ok:22},percentage:0,verified:0,total:77};
- let poll;
- const context={document:{getElementById:element,createElement:()=>new Element(),visibilityState:'visible'},fetch:async url=>{requests.push(url);if((url==='/manager/api/progress/ledger'||(recoveryFetch&&url.includes('/ledger?')&&url.includes('before=test-run-000000000000000000000024')))&&recoveryFetch)return recoveryFetch(url);if(url.includes('/ledger?'))return ledgerFetch?ledgerFetch(url):{ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})};if(url.endsWith('/plan'))return {ok:true,json:async()=>({markdown:'test'})};return {ok:true,json:async()=>data}},setInterval:cb=>{poll=cb},console};
+ let poll,recoveryMode=false;
+ const context={document:{getElementById:element,createElement:()=>new Element(),visibilityState:'visible'},fetch:async url=>{requests.push(url);if(url==='/manager/api/progress/ledger')recoveryMode=true;if(recoveryMode&&url.includes('/ledger')&&recoveryFetch)return recoveryFetch(url);if(url.includes('/ledger?'))return ledgerFetch?ledgerFetch(url):{ok:true,json:async()=>({items:[report(20),report(19)],next_cursor:null})};if(url.endsWith('/plan'))return {ok:true,json:async()=>({markdown:'test'})};return {ok:true,json:async()=>data}},setInterval:cb=>{poll=cb},console};
  vm.createContext(context);vm.runInContext(fs.readFileSync('manager/progress_client.js','utf8'),context);
  return {element,requests,data,poll:()=>poll(),refresh:()=>vm.runInContext('setData('+JSON.stringify(data)+')',context)};
 }
@@ -263,4 +263,44 @@ test('simultaneous polls queue only one retry after recovery failure',async()=>{
  assert.equal(calls,2);
  assert.equal(ui.element('ledger-history').childElementCount,12);
  assert.match(ui.element('ledger-error').textContent,/503/);
+});
+
+test('recovery stops after ten pages without committing any of 100 unseen records',async()=>{
+ let calls=0;
+ const ui=setup(undefined,async url=>{
+  calls++;
+  const end=url.includes('?before=')?parseInt(url.split('before=test-run-')[1],16)-1:139;
+  const items=Array.from({length:10},(_,i)=>report(end-i));
+  return {ok:true,json:async()=>({items,next_cursor:items[9].event_id})};
+ });
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ const old=ui.element('ledger-history').children[0];
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(139-i));ui.data.evidence_ledger_count=131;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(calls,10);
+ assert.equal(ui.element('ledger-history').childElementCount,12);
+ assert.equal(ui.element('ledger-history').children[0],old);
+ assert.match(ui.element('ledger-error').textContent,/límite seguro/);
+});
+test('after bounded failure a subsequent poll can recover continuity without losing older rows',async()=>{
+ let calls=0,limited=true;
+ const ui=setup(undefined,async url=>{
+  calls++;
+  if(!limited)return {ok:true,json:async()=>({items:[report(33),report(32),report(31),report(30)],next_cursor:null})};
+  const end=url.includes('?before=')?parseInt(url.split('before=test-run-')[1],16)-1:139;
+  const items=Array.from({length:10},(_,i)=>report(end-i));
+  return {ok:true,json:async()=>({items,next_cursor:items[9].event_id})};
+ });
+ await new Promise(setImmediate);await ui.element('ledger-more').onclick();
+ const old=ui.element('ledger-history').children[0];
+ ui.data.evidence_ledger=Array.from({length:10},(_,i)=>report(139-i));ui.data.evidence_ledger_count=131;
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(calls,10);
+ limited=false;
+ ui.data.evidence_ledger=[report(33),report(32),report(31),report(30),...Array.from({length:6},(_,i)=>report(29-i))];
+ await ui.poll();await new Promise(setImmediate);
+ assert.equal(calls,11);
+ assert.equal(ui.element('ledger-history').childElementCount,15);
+ assert.equal(ui.element('ledger-history').children[3],old);
+ assert.equal(ui.element('ledger-error').textContent,'');
 });
